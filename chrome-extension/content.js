@@ -16,7 +16,7 @@ class SteamKeyChecker {
         this.currentKeyIndex = 0;
         this.keys = [];
         this.results = [];
-        this.delay = 2000; // 2 secondes entre chaque vérification
+        this.delay = 1000; // 1 seconde entre chaque vérification (plus rapide avec fetch)
         
         // Écouter les messages du popup
         chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -71,13 +71,15 @@ class SteamKeyChecker {
     getPageInfo() {
         const isOnSteamworks = window.location.hostname === 'partner.steamgames.com';
         const isOnQueryPage = window.location.pathname.includes('/querycdkey/');
-        const hasKeyInput = !!document.querySelector('input[name="cdkey"]');
+        // Avec fetch(), on n'a plus besoin du champ input sur la page
+        const hasKeyInput = true; // Toujours vrai avec l'approche fetch()
         
         return {
             isOnSteamworks,
             isOnQueryPage,
             hasKeyInput,
-            url: window.location.href
+            url: window.location.href,
+            method: 'fetch' // Indiquer qu'on utilise fetch()
         };
     }
     
@@ -163,45 +165,47 @@ class SteamKeyChecker {
     
     async checkSingleKey(steamKey) {
         try {
-            // 1. Trouver le champ input
-            const keyInput = document.querySelector('input[name="cdkey"]');
-            if (!keyInput) {
-                throw new Error('Champ de saisie de clé non trouvé');
+            console.log(`🔍 Vérification de la clé via fetch(): ${steamKey}`);
+            
+            // 1. Construire l'URL de vérification
+            const checkUrl = `https://partner.steamgames.com/querycdkey/cdkey?cdkey=${encodeURIComponent(steamKey)}`;
+            console.log(`📤 Requête GET vers: ${checkUrl}`);
+            
+            // 2. Faire la requête avec les cookies de la session
+            const response = await fetch(checkUrl, {
+                method: 'GET',
+                credentials: 'include', // Inclure les cookies de session
+                headers: {
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language': 'fr-FR,fr;q=0.8,en-US;q=0.5,en;q=0.3',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'Referer': 'https://partner.steamgames.com/querycdkey/',
+                    'User-Agent': navigator.userAgent,
+                    'Cache-Control': 'no-cache'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Erreur HTTP: ${response.status} ${response.statusText}`);
             }
             
-            // 2. Effacer le champ et saisir la nouvelle clé
-            keyInput.value = '';
-            keyInput.focus();
+            // 3. Parser la réponse HTML
+            const htmlText = await response.text();
+            console.log(`📥 Réponse reçue (${htmlText.length} caractères), parsing du HTML...`);
             
-            // Saisir caractère par caractère pour éviter les problèmes
-            for (const char of steamKey) {
-                keyInput.value += char;
-                await this.sleep(50); // 50ms entre chaque caractère
+            // Debug: Afficher un extrait de la réponse pour les 3 premières clés
+            if (this.results.length < 3) {
+                console.log(`🔍 DEBUG - Extrait HTML pour ${steamKey}:`, htmlText.substring(0, 1000));
             }
             
-            // Vérifier que la clé a été correctement saisie
-            if (keyInput.value !== steamKey) {
-                throw new Error(`Erreur de saisie: attendu "${steamKey}", obtenu "${keyInput.value}"`);
-            }
-            
-            // 3. Soumettre le formulaire
-            const form = document.getElementById('queryForm');
-            if (!form) {
-                throw new Error('Formulaire de vérification non trouvé');
-            }
-            
-            form.submit();
-            
-            // 4. Attendre le résultat
-            await this.waitForResult();
-            
-            // 5. Extraire le statut
-            const status = this.extractStatus();
+            // 4. Extraire le statut depuis le HTML
+            const status = this.parseStatusFromHTML(htmlText, steamKey);
+            console.log(`✅ Statut extrait: ${status} pour ${steamKey}`);
             
             return { status };
             
         } catch (error) {
-            console.error(`Erreur lors de la vérification de la clé ${steamKey}:`, error);
+            console.error(`❌ Erreur lors de la vérification de la clé ${steamKey}:`, error);
             return { 
                 status: 'Error',
                 error: error.message 
@@ -209,33 +213,93 @@ class SteamKeyChecker {
         }
     }
     
-    async waitForResult(timeout = 10000) {
-        return new Promise((resolve, reject) => {
-            const startTime = Date.now();
+    // Méthode waitForResult supprimée - non nécessaire avec fetch()
+    
+    parseStatusFromHTML(htmlText, steamKey) {
+        try {
+            console.log(`🔍 Parsing HTML pour ${steamKey}...`);
             
-            const checkForResult = () => {
-                // Vérifier si on a un résultat
-                const statusElement = document.querySelector('td span[style*="color"]');
+            // Créer un parser DOM temporaire
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlText, 'text/html');
+            
+            // Méthode 1: Rechercher les spans avec couleur dans les tableaux
+            const statusSpans = doc.querySelectorAll('td span[style*="color"], span[style*="color"]');
+            console.log(`🔍 ${statusSpans.length} spans avec couleur trouvés`);
+            
+            for (const span of statusSpans) {
+                const statusText = span.textContent.trim();
+                const statusColor = span.getAttribute('style') || '';
                 
-                if (statusElement) {
-                    resolve();
-                    return;
+                console.log(`🔍 Span: "${statusText}" | Style: "${statusColor}"`);
+                
+                // Vérifier d'abord "NON activée" pour éviter les faux positifs
+                if (statusText.toLowerCase().includes('non activée') || 
+                    statusText.toLowerCase().includes('not activated') ||
+                    (statusColor.includes('#e24044') || statusColor.includes('rgb(226, 64, 68)'))) {
+                    console.log(`❌ Détecté: NOT ACTIVATED`);
+                    return "Not activated";
                 }
                 
-                // Timeout
-                if (Date.now() - startTime > timeout) {
-                    reject(new Error('Timeout: aucun résultat reçu'));
-                    return;
+                // Puis vérifier "activée"
+                if (statusText.toLowerCase().includes('activée') || 
+                    statusText.toLowerCase().includes('activated') ||
+                    (statusColor.includes('#67c1f5') || statusColor.includes('rgb(103, 193, 245)'))) {
+                    console.log(`✅ Détecté: ACTIVATED`);
+                    return "Activated";
                 }
-                
-                // Réessayer dans 100ms
-                setTimeout(checkForResult, 100);
-            };
+            }
             
-            checkForResult();
-        });
+            // Méthode 2: Rechercher dans tout le contenu textuel
+            const bodyText = doc.body ? doc.body.textContent : htmlText;
+            const lowerBodyText = bodyText.toLowerCase();
+            
+            console.log(`📄 Recherche dans le texte complet (${bodyText.length} caractères)...`);
+            
+            // Patterns plus spécifiques avec priorité à "NON activée"
+            if (lowerBodyText.includes('non activée')) {
+                console.log(`❌ Trouvé dans le texte: "non activée"`);
+                return "Not activated";
+            }
+            
+            if (lowerBodyText.includes('not activated')) {
+                console.log(`❌ Trouvé dans le texte: "not activated"`);
+                return "Not activated";
+            }
+            
+            // Vérifier "activée" seulement si "non activée" n'est pas présent
+            if (lowerBodyText.includes('activée')) {
+                console.log(`✅ Trouvé dans le texte: "activée"`);
+                return "Activated";
+            }
+            
+            if (lowerBodyText.includes('activated')) {
+                console.log(`✅ Trouvé dans le texte: "activated"`);
+                return "Activated";
+            }
+            
+            // Autres statuts
+            if (lowerBodyText.includes('invalid') || lowerBodyText.includes('invalide')) {
+                console.log(`⚠️ Trouvé: Invalid`);
+                return "Invalid";
+            }
+            
+            if (lowerBodyText.includes('not found') || lowerBodyText.includes('introuvable')) {
+                console.log(`⚠️ Trouvé: Not found`);
+                return "Not found";
+            }
+            
+            console.warn(`⚠️ Aucun statut reconnu pour ${steamKey}`);
+            console.log(`📄 Extrait du texte:`, lowerBodyText.substring(0, 500));
+            return "Unknown status";
+            
+        } catch (error) {
+            console.error(`❌ Erreur lors du parsing HTML pour ${steamKey}:`, error);
+            return `Parse error: ${error.message}`;
+        }
     }
     
+    // Méthode legacy conservée pour compatibilité (non utilisée avec fetch)
     extractStatus() {
         try {
             // Chercher l'élément de statut avec couleur
