@@ -16,6 +16,7 @@ class SteamKeysPopup {
         this.isChecking = false;
         this.results = [];
         this.currentStep = 'upload';
+        this.autoDownloadTriggered = localStorage.getItem('autoDownloadTriggered') === 'true'; // Flag persistant
         
         this.initializeElements();
         this.attachEventListeners();
@@ -262,6 +263,8 @@ class SteamKeysPopup {
             // Si une vérification est en cours, restaurer l'état de progression
             if (state.isChecking) {
                 this.isChecking = true;
+                this.autoDownloadTriggered = false; // Réinitialiser le flag pour une vérification en cours
+                localStorage.setItem('autoDownloadTriggered', 'false'); // Réinitialiser dans localStorage
                 this.results = state.currentResults || [];
                 
                 // Restaurer les données CSV et config
@@ -680,6 +683,8 @@ class SteamKeysPopup {
     async startChecking() {
         try {
             this.isChecking = true;
+            this.autoDownloadTriggered = false; // Réinitialiser le flag pour une nouvelle vérification
+            localStorage.setItem('autoDownloadTriggered', 'false'); // Réinitialiser dans localStorage
             this.updateStatus('processing', 'Vérification en cours...');
             
             // Masquer le bouton de démarrage, afficher celui d'arrêt
@@ -804,6 +809,13 @@ class SteamKeysPopup {
                     this.updateStatus('warning', 'Vérification arrêtée - Aucune clé traitée');
                 }
                 break;
+                
+            case 'cleanupAutoDownloadFlag':
+                // Nettoyer le flag de téléchargement automatique
+                this.autoDownloadTriggered = false;
+                localStorage.setItem('autoDownloadTriggered', 'false');
+                console.log('🧹 Flag de téléchargement automatique nettoyé');
+                break;
         }
     }
     
@@ -847,13 +859,17 @@ class SteamKeysPopup {
         
         this.updateStatus('success', `Vérification terminée - ${this.results.length} clés traitées`);
         
-        // Télécharger automatiquement le CSV si l'option est activée
-        if (localStorage.getItem('autoDownload') === 'true') {
+        // Télécharger automatiquement le CSV si l'option est activée ET que ce n'est pas déjà fait
+        if (localStorage.getItem('autoDownload') === 'true' && !this.autoDownloadTriggered) {
             console.log('🔄 Téléchargement automatique activé, lancement dans 1 seconde...');
+            this.autoDownloadTriggered = true; // Marquer comme déclenché
+            localStorage.setItem('autoDownloadTriggered', 'true'); // Sauvegarder dans localStorage
             setTimeout(async () => {
                 console.log('📥 Lancement du téléchargement automatique...');
                 await this.downloadResults();
             }, 1000);
+        } else if (localStorage.getItem('autoDownload') === 'true' && this.autoDownloadTriggered) {
+            console.log('❌ Téléchargement automatique déjà effectué');
         } else {
             console.log('❌ Téléchargement automatique désactivé');
         }
@@ -989,6 +1005,8 @@ class SteamKeysPopup {
         this.csvHeaders = [];
         this.results = [];
         this.isChecking = false;
+        this.autoDownloadTriggered = false; // Réinitialiser le flag
+        localStorage.setItem('autoDownloadTriggered', 'false'); // Réinitialiser dans localStorage
         
         // Masquer toutes les étapes sauf la première
         this.stepConfig.style.display = 'none';
