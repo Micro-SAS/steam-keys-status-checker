@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generate Icons</title>
+</head>
+<body>
+    <h2>Steam Keys Checker - Icon Generator</h2>
+    <p>Ouvrez la console pour télécharger les icônes générées</p>
+    
+    <script>
+        function generateIcon(size) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            // Background gradient
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#667eea');
+            gradient.addColorStop(1, '#764ba2');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, size, size);
+            
+            // Add rounded corners
+            ctx.globalCompositeOperation = 'destination-in';
+            ctx.beginPath();
+            ctx.roundRect(0, 0, size, size, size * 0.15);
+            ctx.fill();
+            ctx.globalCompositeOperation = 'source-over';
+            
+            // Add key emoji/symbol
+            ctx.fillStyle = 'white';
+            ctx.font = `${size * 0.5}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🔑', size / 2, size / 2);
+            
+            return canvas;
+        }
+        
+        function downloadIcon(canvas, filename) {
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+        
+        // Generate all icon sizes
+        const sizes = [16, 32, 48, 128];
+        
+        console.log('Génération des icônes...');
+        
+        sizes.forEach(size => {
+            const canvas = generateIcon(size);
+            const filename = `icon${size}.png`;
+            
+            // Add to page for preview
+            canvas.style.margin = '10px';
+            canvas.style.border = '1px solid #ccc';
+            document.body.appendChild(canvas);
+            
+            // Auto-download (might be blocked by browser)
+            setTimeout(() => {
+                downloadIcon(canvas, filename);
+            }, 100 * size);
+        });
+        
+        console.log('Icônes générées! Vérifiez vos téléchargements.');
+        console.log('Si les téléchargements automatiques sont bloqués, cliquez droit sur chaque icône et "Enregistrer l\'image sous..."');
+    </script>
+</body>
+</html> 
