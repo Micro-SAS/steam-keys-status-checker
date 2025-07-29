@@ -94,6 +94,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             broadcastToPopup(message);
             break;
             
+        case 'stopChecking':
+            // Message d'arrêt du popup - le relayer vers le content script
+            console.log('🛑 Arrêt demandé par le popup, relais vers le content script');
+            relayToContentScript(message);
+            sendResponse({ success: true });
+            break;
+            
         case 'getExtensionState':
             // Le popup demande l'état actuel
             sendResponse(extensionState);
@@ -141,6 +148,27 @@ async function broadcastToPopup(message) {
     } catch (error) {
         // Le popup n'est probablement pas ouvert, c'est normal
         console.log('Popup non ouvert, message non envoyé:', message.type);
+    }
+}
+
+// Fonction pour relayer un message vers le content script
+async function relayToContentScript(message) {
+    try {
+        // Trouver l'onglet Steamworks actif
+        const tabs = await chrome.tabs.query({ 
+            url: "https://partner.steamgames.com/*",
+            active: true 
+        });
+        
+        if (tabs.length > 0) {
+            // Envoyer le message au content script
+            await chrome.tabs.sendMessage(tabs[0].id, message);
+            console.log('✅ Message d\'arrêt envoyé au content script');
+        } else {
+            console.log('⚠️ Aucun onglet Steamworks actif trouvé');
+        }
+    } catch (error) {
+        console.error('❌ Erreur lors de l\'envoi du message d\'arrêt:', error);
     }
 }
 

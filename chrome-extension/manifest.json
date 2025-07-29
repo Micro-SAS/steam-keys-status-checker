@@ -20,7 +20,13 @@
     "service_worker": "background.js"
   },
   
-
+  "content_scripts": [
+    {
+      "matches": ["https://partner.steamgames.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
   
   "action": {
     "default_popup": "popup.html",

@@ -27,10 +27,43 @@
 
         <!-- Main Content -->
         <main class="extension-main">
-            <!-- Step 1: File Upload -->
-            <section class="step-section" id="stepUpload">
+            <!-- Step 1: Steamworks Connection -->
+            <section class="step-section" id="stepConnection">
                 <div class="step-header">
-                    <h2>📁 1. Importer votre CSV</h2>
+                    <h2>🔗 1. Connexion Steamworks</h2>
+                </div>
+                
+                <div class="connection-status" id="connectionStatus">
+                    <div class="connection-check">
+                        <div class="loading-spinner" id="connectionSpinner"></div>
+                        <p id="connectionText">Vérification de la connexion...</p>
+                    </div>
+                </div>
+                
+                <div class="connection-success" id="connectionSuccess" style="display: none;">
+                    <div class="success-indicator">
+                        <span class="success-icon">✅</span>
+                        <p>Connecté à Steamworks</p>
+                    </div>
+                </div>
+                
+                <div class="connection-instructions" id="connectionInstructions" style="display: none;">
+                    <div class="instruction-box">
+                        <h3>🚀 Connexion requise:</h3>
+                        <p>Vous devez être connecté à votre espace Steamworks Partner pour utiliser cette extension.</p>
+                        <div class="connection-buttons">
+                            <button class="btn btn-primary btn-large" id="connectSteamworksBtn">
+                                🌐 Se connecter à mon espace Steamworks
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Step 2: File Upload -->
+            <section class="step-section" id="stepUpload" style="display: none;">
+                <div class="step-header">
+                    <h2>📁 2. Importer votre CSV</h2>
                 </div>
                 
                 <div class="file-upload-area">
@@ -58,10 +91,10 @@
                 </div>
             </section>
 
-            <!-- Step 2: Column Configuration -->
+            <!-- Step 3: Column Configuration -->
             <section class="step-section" id="stepConfig" style="display: none;">
                 <div class="step-header">
-                    <h2>⚙️ 2. Configuration des colonnes</h2>
+                    <h2>⚙️ 3. Configuration des colonnes</h2>
                 </div>
                 
                 <div class="config-form">
@@ -88,41 +121,6 @@
                         <select id="checkColumn" class="form-select">
                             <option value="">Toutes les clés</option>
                         </select>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Step 3: Steam Connection Check -->
-            <section class="step-section" id="stepConnection" style="display: none;">
-                <div class="step-header">
-                    <h2>🔗 3. Connexion Steamworks</h2>
-                </div>
-                
-                <div class="connection-status" id="connectionStatus">
-                    <div class="connection-check">
-                        <div class="loading-spinner" id="connectionSpinner"></div>
-                        <p id="connectionText">Vérification de la connexion...</p>
-                    </div>
-                </div>
-                
-                <div class="connection-instructions" id="connectionInstructions" style="display: none;">
-                    <div class="instruction-box">
-                        <h3>🚀 Instructions:</h3>
-                        <ol>
-                            <li>Cliquez sur "Ouvrir Steamworks" ci-dessous</li>
-                            <li>Connectez-vous à votre compte Steamworks Partner</li>
-                            <li>Naviguez vers la page de vérification des clés</li>
-                            <li>Revenez ici et cliquez sur "Commencer la vérification"</li>
-                        </ol>
-                        <p><strong>Note:</strong> La connexion sera vérifiée au moment de lancer la vérification.</p>
-                        <div class="connection-buttons">
-                            <button class="btn btn-primary btn-large" id="openSteamworksBtn">
-                                🌐 Ouvrir Steamworks
-                            </button>
-                            <button class="btn btn-secondary" id="retryConnectionBtn">
-                                🔄 Réessayer la connexion
-                            </button>
-                        </div>
                     </div>
                 </div>
             </section>
@@ -177,7 +175,7 @@
             <!-- Step 5: Results -->
             <section class="step-section" id="stepResults" style="display: none;">
                 <div class="step-header">
-                    <h2>📊 5. Résultats</h2>
+                    <h2>📊 5. Résultats et export</h2>
                 </div>
                 
                 <div class="results-summary" id="resultsSummary"></div>

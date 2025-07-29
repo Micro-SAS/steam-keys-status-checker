@@ -19,9 +19,7 @@ class SteamKeysPopup {
         
         this.initializeElements();
         this.attachEventListeners();
-        this.checkExtensionState();
-        
-        console.log('🔑 Steam Keys Checker Popup initialisé');
+        this.checkSteamworksConnectionFirst();
     }
     
     initializeElements() {
@@ -44,13 +42,16 @@ class SteamKeysPopup {
         this.connectionStatus = document.getElementById('connectionStatus');
         this.connectionText = document.getElementById('connectionText');
         this.connectionSpinner = document.getElementById('connectionSpinner');
+        this.connectionSuccess = document.getElementById('connectionSuccess');
         this.connectionInstructions = document.getElementById('connectionInstructions');
-        this.openSteamworksBtn = document.getElementById('openSteamworksBtn');
+        this.connectSteamworksBtn = document.getElementById('connectSteamworksBtn');
         
         // Processing elements
         this.keysSummary = document.getElementById('keysSummary');
         this.startCheckingBtn = document.getElementById('startCheckingBtn');
         this.stopCheckingBtn = document.getElementById('stopCheckingBtn');
+        
+
         this.progressSection = document.getElementById('progressSection');
         this.progressFill = document.getElementById('progressFill');
         this.progressText = document.getElementById('progressText');
@@ -78,9 +79,9 @@ class SteamKeysPopup {
         this.errorModalOk = document.getElementById('errorModalOk');
         
         // Step sections
+        this.stepConnection = document.getElementById('stepConnection');
         this.stepUpload = document.getElementById('stepUpload');
         this.stepConfig = document.getElementById('stepConfig');
-        this.stepConnection = document.getElementById('stepConnection');
         this.stepProcessing = document.getElementById('stepProcessing');
         this.stepResults = document.getElementById('stepResults');
     }
@@ -106,11 +107,7 @@ class SteamKeysPopup {
         });
         
         // Connection
-        this.openSteamworksBtn.addEventListener('click', () => this.openSteamworks());
-        
-        // Retry connection button - rouvre Steamworks
-        this.retryConnectionBtn = document.getElementById('retryConnectionBtn');
-        this.retryConnectionBtn.addEventListener('click', () => this.openSteamworks());
+        this.connectSteamworksBtn.addEventListener('click', () => this.connectToSteamworks());
         
         // Processing
         this.startCheckingBtn.addEventListener('click', () => this.startChecking());
@@ -132,6 +129,124 @@ class SteamKeysPopup {
         });
     }
     
+        async checkSteamworksConnectionFirst() {
+        this.updateStatus('processing', 'Vérification de la connexion Steamworks...');
+        
+        try {
+            // Utiliser le content script pour vérifier la connexion
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            
+            if (!tab.url || !tab.url.includes('partner.steamgames.com')) {
+                this.showConnectionInstructions();
+                this.updateStatus('warning', 'Ouvrez Steamworks pour vérifier la connexion');
+                return;
+            }
+            
+            // Demander au content script de vérifier la connexion
+            const response = await chrome.tabs.sendMessage(tab.id, { action: 'checkConnection' });
+            
+            if (response && response.isLoggedIn) {
+                this.showConnectionSuccess();
+                this.updateStatus('success', 'Connecté à Steamworks');
+                
+                // Passer automatiquement à l'étape 2 après un délai
+                setTimeout(() => {
+                    this.stepUpload.style.display = 'block';
+                    this.updateStatus('info', 'Importez votre fichier CSV');
+                }, 1500);
+                
+                await this.checkExtensionState();
+            } else {
+                this.showConnectionInstructions();
+                this.updateStatus('warning', 'Connexion à Steamworks requise');
+            }
+            
+        } catch (error) {
+            this.showConnectionInstructions();
+            this.updateStatus('warning', 'Ouvrez Steamworks pour vérifier la connexion');
+        }
+    }
+    
+    checkIfLoggedInToSteamworks(htmlText) {
+        // Convertir en minuscules pour les vérifications
+        const lowerHtml = htmlText.toLowerCase();
+        
+        // Indicateurs que l'utilisateur N'EST PAS connecté
+        const notLoggedInIndicators = [
+            'se connecter',  // Bouton "Se connecter" visible
+            'sign in',       // Version anglaise
+            'login',         // Page de login
+            'g_showlogindialog', // Fonction de login mentionnée dans l'erreur
+            'steam account', // Demande de compte Steam
+            'create account', // Création de compte
+            'forgotten password', // Mot de passe oublié
+            'mot de passe oublié'
+        ];
+        
+        // Vérifier les indicateurs de non-connexion
+        for (const indicator of notLoggedInIndicators) {
+            if (lowerHtml.includes(indicator)) {
+                console.log(`❌ Indicateur de non-connexion trouvé: "${indicator}"`);
+                return false;
+            }
+        }
+        
+        // Indicateurs que l'utilisateur EST connecté
+        const loggedInIndicators = [
+            'queryform',     // Formulaire de vérification des clés
+            'name="cdkey"',  // Champ de saisie de clé
+            'tableau de bord', // Dashboard Steamworks
+            'partner dashboard', // Version anglaise
+            'déconnexion',   // Option de déconnexion
+            'logout',        // Version anglaise
+            'mon compte',    // Accès au compte
+            'my account'     // Version anglaise
+        ];
+        
+        // Compter les indicateurs de connexion
+        let loggedInScore = 0;
+        for (const indicator of loggedInIndicators) {
+            if (lowerHtml.includes(indicator)) {
+                console.log(`✅ Indicateur de connexion trouvé: "${indicator}"`);
+                loggedInScore++;
+            }
+        }
+        
+        // Considérer comme connecté si au moins 2 indicateurs positifs
+        const isLoggedIn = loggedInScore >= 2;
+        console.log(`📊 Score de connexion: ${loggedInScore}/8 indicateurs → ${isLoggedIn ? 'CONNECTÉ' : 'NON CONNECTÉ'}`);
+        
+        return isLoggedIn;
+    }
+
+    showConnectionSuccess() {
+        this.connectionStatus.style.display = 'none';
+        this.connectionInstructions.style.display = 'none';
+        this.connectionSuccess.style.display = 'block';
+        
+        // Afficher l'étape suivante après un délai
+        setTimeout(() => {
+            this.stepUpload.style.display = 'block';
+        }, 1000);
+    }
+    
+    showConnectionInstructions() {
+        this.connectionStatus.style.display = 'none';
+        this.connectionSuccess.style.display = 'none';
+        this.connectionInstructions.style.display = 'block';
+    }
+    
+    async connectToSteamworks() {
+        // Ouvrir Steamworks dans un nouvel onglet
+        await chrome.tabs.create({ 
+            url: 'https://partner.steamgames.com/querycdkey/',
+            active: true 
+        });
+        
+        // Fermer le popup pour que l'utilisateur se connecte
+        window.close();
+    }
+
     async checkExtensionState() {
         try {
             const state = await chrome.runtime.sendMessage({ type: 'getExtensionState' });
@@ -168,7 +283,7 @@ class SteamKeysPopup {
                     this.key2Column.disabled = !state.config.hasKey2;
                     
                     if (state.config.key1Column) {
-                        this.showConnectionStep();
+                        this.showProcessingStep();
                     }
                 }
                 
@@ -354,7 +469,7 @@ class SteamKeysPopup {
         
         // Vérifier si on peut passer à l'étape suivante
         if (this.config.key1Column) {
-            this.showConnectionStep();
+            this.showProcessingStep();
         }
     }
     
@@ -447,17 +562,12 @@ class SteamKeysPopup {
     }
     
     showProcessingStep() {
-        // NE PAS masquer l'étape de connexion - la laisser visible
-        // this.hideConnectionStep();
-        
         // Afficher l'étape de traitement
         this.stepProcessing.style.display = 'block';
         this.currentStep = 'processing';
         
         // Préparer le résumé des clés
         this.prepareKeysSummary();
-        
-        console.log('Étape de traitement affichée');
     }
     
     prepareKeysSummary() {
@@ -540,77 +650,55 @@ class SteamKeysPopup {
             const keys = this.extractKeysFromCSV();
             
             // Obtenir l'onglet Steamworks
-            const [tab] = await chrome.tabs.query({ 
+            const tabs = await chrome.tabs.query({ 
                 url: "https://partner.steamgames.com/*" 
             });
             
-            if (!tab) {
+            if (!tabs || tabs.length === 0) {
                 throw new Error('Aucun onglet Steamworks trouvé. Veuillez ouvrir Steamworks.');
             }
             
+            // Chercher l'onglet avec /querycdkey/ exact en priorité
+            let tab = tabs[0]; // Par défaut, premier onglet
+            for (const t of tabs) {
+                if (t.url === 'https://partner.steamgames.com/querycdkey/') {
+                    tab = t;
+                    break;
+                }
+            }
+            // Si pas trouvé, chercher un onglet avec /querycdkey/ dans l'URL
+            if (tab.url !== 'https://partner.steamgames.com/querycdkey/') {
+                for (const t of tabs) {
+                    if (t.url.includes('/querycdkey/')) {
+                        tab = t;
+                        break;
+                    }
+                }
+            }
+            
             // Vérifier que le content script est chargé et fonctionne
-            let contentScriptReady = false;
             try {
                 const pingResponse = await chrome.tabs.sendMessage(tab.id, { type: 'ping' });
-                if (pingResponse && pingResponse.type === 'pong') {
-                    console.log('Content script disponible et fonctionnel');
-                    contentScriptReady = true;
+                if (!pingResponse || pingResponse.type !== 'pong') {
+                    throw new Error('Content script ne répond pas correctement');
                 }
             } catch (pingError) {
-                console.log('Content script non disponible ou non fonctionnel');
-            }
-            
-            if (!contentScriptReady) {
-                console.log('Tentative de ré-injection du content script...');
-                try {
-                    await chrome.scripting.executeScript({
-                        target: { tabId: tab.id },
-                        files: ['content.js']
-                    });
-                    // Attendre que le script se charge
-                    await new Promise(resolve => setTimeout(resolve, 1500));
-                    
-                    // Vérifier à nouveau
-                    const pingResponse = await chrome.tabs.sendMessage(tab.id, { type: 'ping' });
-                    if (!pingResponse || pingResponse.type !== 'pong') {
-                        throw new Error('Le content script ne répond pas après injection');
-                    }
-                    console.log('Content script injecté avec succès');
-                } catch (injectionError) {
-                    console.error('Erreur lors de l\'injection:', injectionError);
-                    throw new Error('Impossible d\'initialiser le content script. Rechargez la page Steamworks.');
-                }
-            }
-            
-            // Envoyer les clés au content script avec gestion d'erreur
-            console.log('🚀 DÉBUT - Envoi du message checkKeys avec', keys.length, 'clés vers l\'onglet', tab.id);
-            console.log('🔍 DEBUG - URL de l\'onglet:', tab.url);
-            
-            try {
-                console.log('📤 ENVOI - Message checkKeys en cours...');
-                const response = await chrome.tabs.sendMessage(tab.id, {
-                    action: 'checkKeys',
-                    keys: keys
-                });
-                console.log('✅ SUCCÈS - Réponse du content script:', response);
-            } catch (msgError) {
-                console.error('❌ ERREUR - Communication avec le content script:', msgError);
-                console.error('❌ ERREUR - Message complet:', msgError.message);
-                console.error('❌ ERREUR - Stack:', msgError.stack);
-                
-                if (msgError.message && msgError.message.includes('Could not establish connection')) {
-                    throw new Error('❌ Le content script n\'est pas chargé. Ouvrez partner.steamgames.com/querycdkey/ dans un onglet et réessayez.');
-                } else if (msgError.message && msgError.message.includes('message channel closed')) {
-                    throw new Error('❌ La communication a été interrompue. Assurez-vous d\'être sur partner.steamgames.com/querycdkey/ et réessayez.');
-                } else if (msgError.message && msgError.message.includes('Receiving end does not exist')) {
-                    throw new Error('❌ Aucun content script trouvé. Ouvrez partner.steamgames.com/querycdkey/ et réessayez.');
+                if (pingError.message.includes('Could not establish connection')) {
+                    throw new Error('Le content script n\'est pas chargé. Assurez-vous d\'être sur partner.steamgames.com et rechargez la page.');
+                } else if (pingError.message.includes('Receiving end does not exist')) {
+                    throw new Error('Aucun content script trouvé. Ouvrez partner.steamgames.com et réessayez.');
                 } else {
-                    throw new Error(`❌ Erreur de communication: ${msgError.message || 'Inconnue'}. Vérifiez que vous êtes sur la page Steamworks.`);
+                    throw new Error(`Erreur de communication: ${pingError.message}. Rechargez la page Steamworks.`);
                 }
             }
+            
+            // Envoyer les clés au content script
+            const response = await chrome.tabs.sendMessage(tab.id, {
+                action: 'checkKeys',
+                keys: keys
+            });
             
         } catch (error) {
-            console.error('Erreur lors du démarrage:', error);
             this.showError(`Erreur: ${error.message}`);
             this.stopChecking();
         }
@@ -620,14 +708,11 @@ class SteamKeysPopup {
         try {
             this.isChecking = false;
             
-            // Envoyer signal d'arrêt au content script
-            const [tab] = await chrome.tabs.query({ 
-                url: "https://partner.steamgames.com/*" 
+            // Envoyer signal d'arrêt au background script
+            await chrome.runtime.sendMessage({ 
+                type: 'stopChecking',
+                action: 'stopChecking'
             });
-            
-            if (tab) {
-                await chrome.tabs.sendMessage(tab.id, { action: 'stopChecking' });
-            }
             
             this.updateStatus('warning', 'Vérification arrêtée');
             
@@ -662,8 +747,17 @@ class SteamKeysPopup {
                 
             case 'checkingStopped':
                 this.results = message.results;
+                this.isChecking = false;
+                
+                // Réinitialiser les boutons
+                this.startCheckingBtn.style.display = 'inline-flex';
+                this.stopCheckingBtn.style.display = 'none';
+                
                 if (this.results.length > 0) {
                     this.showResults();
+                    this.updateStatus('warning', `Vérification arrêtée - ${this.results.length} clés traitées`);
+                } else {
+                    this.updateStatus('warning', 'Vérification arrêtée - Aucune clé traitée');
                 }
                 break;
         }
@@ -859,7 +953,5 @@ class SteamKeysPopup {
     }
 }
 
-// Initialiser le popup quand le DOM est prêt
-document.addEventListener('DOMContentLoaded', () => {
-    new SteamKeysPopup();
-}); 
+// Initialisation automatique du popup
+new SteamKeysPopup(); 

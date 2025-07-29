@@ -248,17 +248,20 @@ class SteamKeysCheckerApp:
     
     def stop_verification(self):
         """Arrête la vérification."""
+        self.log_message("🛑 Arrêt de la vérification demandé...")
         self.is_processing = False
+        
         if self.driver:
             try:
                 self.driver.quit()
-            except:
-                pass
+                self.log_message("🌐 Navigateur fermé")
+            except Exception as e:
+                self.log_message(f"⚠️ Erreur lors de la fermeture du navigateur: {e}")
         
         self.start_button.config(state='normal')
         self.stop_button.config(state='disabled')
         self.progress_var.set("Arrêté")
-        self.log_message("Vérification arrêtée par l'utilisateur")
+        self.log_message("✅ Vérification arrêtée par l'utilisateur")
     
     def verification_process(self):
         """Processus principal de vérification."""
@@ -337,6 +340,7 @@ class SteamKeysCheckerApp:
             
             for index, column_name, steam_key in keys_to_verify:
                 if not self.is_processing:
+                    self.log_message("🛑 Arrêt détecté dans la boucle principale")
                     break
                 
                 self.progress_var.set(f"Vérification {checked_count + 1}/{len(keys_to_verify)}")
@@ -344,6 +348,11 @@ class SteamKeysCheckerApp:
                 
                 # Vérifier la clé
                 status = self.check_steam_key(steam_key)
+                
+                # Si la vérification a été arrêtée, sortir de la boucle
+                if status == "Stopped":
+                    self.log_message("🛑 Vérification arrêtée pendant le traitement de la clé")
+                    break
                 
                 # Mettre à jour le DataFrame
                 status_column = f"{column_name}_status"
@@ -354,16 +363,35 @@ class SteamKeysCheckerApp:
                 checked_count += 1
                 self.progress_bar['value'] = checked_count
                 
-                # Délai entre les vérifications
+                # Délai entre les vérifications avec vérification d'arrêt
                 if checked_count < len(keys_to_verify) and self.is_processing:
                     delay = random.uniform(self.MIN_DELAY, self.MAX_DELAY)
                     self.log_message(f"   Attente {delay:.1f} secondes...")
-                    time.sleep(delay)
+                    
+                    # Diviser le délai en petites portions pour permettre l'arrêt
+                    delay_steps = int(delay * 10)  # 10 vérifications par seconde
+                    for _ in range(delay_steps):
+                        if not self.is_processing:
+                            self.log_message("🛑 Arrêt détecté pendant l'attente")
+                            break
+                        time.sleep(0.1)
+                    
+                    # Si l'arrêt a été demandé pendant l'attente, sortir
+                    if not self.is_processing:
+                        break
             
             # Sauvegarder les résultats
             if checked_count > 0:
                 self.save_results(df)
                 self.display_summary(df)
+            
+            # Message final selon le cas
+            if not self.is_processing and checked_count < len(keys_to_verify):
+                self.log_message(f"🛑 Vérification arrêtée après {checked_count} clés sur {len(keys_to_verify)}")
+            elif checked_count == len(keys_to_verify):
+                self.log_message("✅ Toutes les clés ont été vérifiées avec succès")
+            else:
+                self.log_message(f"✅ Vérification terminée: {checked_count} clés traitées")
             
         except Exception as e:
             self.log_message(f"❌ Erreur pendant la vérification: {e}")
@@ -374,13 +402,18 @@ class SteamKeysCheckerApp:
                 try:
                     self.driver.quit()
                     self.log_message("🌐 Chrome fermé")
-                except:
-                    pass
+                except Exception as e:
+                    self.log_message(f"⚠️ Erreur lors de la fermeture de Chrome: {e}")
             
             self.is_processing = False
             self.start_button.config(state='normal')
             self.stop_button.config(state='disabled')
-            self.progress_var.set("Terminé")
+            
+            # Message final dans la barre de progression
+            if checked_count < len(keys_to_verify):
+                self.progress_var.set("Arrêté")
+            else:
+                self.progress_var.set("Terminé")
     
     def setup_driver(self):
         """Configure et initialise le driver Chrome."""
@@ -404,8 +437,16 @@ class SteamKeysCheckerApp:
     def check_steam_key(self, steam_key):
         """Vérifie le statut d'une clé Steam."""
         try:
+            # Vérifier si l'arrêt a été demandé
+            if not self.is_processing:
+                return "Stopped"
+            
             # Aller à la page de vérification
             self.driver.get(self.STEAMWORKS_URL)
+            
+            # Vérifier si l'arrêt a été demandé
+            if not self.is_processing:
+                return "Stopped"
             
             # Attendre et trouver le champ de saisie
             wait = WebDriverWait(self.driver, 10)
@@ -415,14 +456,28 @@ class SteamKeysCheckerApp:
             except:
                 return "Error: cdkey field not found"
             
+            # Vérifier si l'arrêt a été demandé
+            if not self.is_processing:
+                return "Stopped"
+            
             # Saisir la clé
             key_input.clear()
             time.sleep(0.5)
             
+            # Vérifier si l'arrêt a été demandé
+            if not self.is_processing:
+                return "Stopped"
+            
             # Saisie caractère par caractère
             for char in steam_key:
+                if not self.is_processing:
+                    return "Stopped"
                 key_input.send_keys(char)
                 time.sleep(0.1)
+            
+            # Vérifier si l'arrêt a été demandé
+            if not self.is_processing:
+                return "Stopped"
             
             # Vérifier la saisie
             typed_value = key_input.get_attribute('value')
@@ -434,6 +489,10 @@ class SteamKeysCheckerApp:
                 
                 if typed_value != steam_key:
                     return f"Error: Unable to enter key correctly"
+            
+            # Vérifier si l'arrêt a été demandé
+            if not self.is_processing:
+                return "Stopped"
             
             # Soumettre le formulaire
             try:
@@ -450,6 +509,8 @@ class SteamKeysCheckerApp:
                 
                 verify_button = None
                 for selector in button_selectors:
+                    if not self.is_processing:
+                        return "Stopped"
                     try:
                         verify_button = self.driver.find_element(By.CSS_SELECTOR, selector)
                         break
@@ -461,8 +522,19 @@ class SteamKeysCheckerApp:
                 
                 verify_button.click()
             
-            # Attendre le résultat
-            time.sleep(3)
+            # Vérifier si l'arrêt a été demandé
+            if not self.is_processing:
+                return "Stopped"
+            
+            # Attendre le résultat avec vérification périodique
+            for _ in range(30):  # Maximum 3 secondes (30 * 0.1)
+                if not self.is_processing:
+                    return "Stopped"
+                time.sleep(0.1)
+            
+            # Vérifier si l'arrêt a été demandé
+            if not self.is_processing:
+                return "Stopped"
             
             # Analyser le statut
             return self.parse_status()

@@ -3,15 +3,18 @@
  * S'exécute directement sur partner.steamgames.com
  */
 
+console.log('🔑 Content script Steam Keys Checker chargé sur:', window.location.href);
+
 // Éviter la double injection du script
 if (window.steamKeyCheckerInstance) {
-    console.log('Content script déjà injecté, réutilisation de l\'instance existante');
-    // Arrêter ici pour éviter la double injection
+    console.log('⚠️ Instance de SteamKeyChecker déjà existante, réutilisation');
+    // Réutiliser l'instance existante
 } else {
-    console.log('Injection du content script');
+    console.log('✅ Création d\'une nouvelle instance de SteamKeyChecker');
 
 class SteamKeyChecker {
     constructor() {
+        console.log('🚀 Initialisation de SteamKeyChecker');
         this.isChecking = false;
         this.currentKeyIndex = 0;
         this.keys = [];
@@ -20,50 +23,50 @@ class SteamKeyChecker {
         
         // Écouter les messages du popup
         chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-            console.log('Content script - Message reçu:', request);
-            
+            console.log('📨 Message reçu dans content script:', request);
             try {
                 switch (request.action || request.type) {
                     case 'getPageInfo':
                         const info = this.getPageInfo();
-                        console.log('Content script - Page info:', info);
                         sendResponse(info);
                         return false; // Réponse synchrone
                         
                     case 'ping':
-                        console.log('Content script - Ping reçu, envoi du pong');
                         sendResponse({ type: 'pong' });
                         return false; // Réponse synchrone
                         
+                    case 'checkConnection':
+                        const isLoggedIn = this.checkIfLoggedIn();
+                        sendResponse({ isLoggedIn });
+                        return false; // Réponse synchrone
+                        
                     case 'checkKeys':
-                        console.log('Content script - Message checkKeys reçu avec', request.keys?.length, 'clés');
                         this.startKeyChecking(request.keys).then(() => {
-                            console.log('Content script - Vérification terminée avec succès');
                             sendResponse({ success: true });
                         }).catch((error) => {
-                            console.error('Content script - Erreur lors de la vérification:', error);
                             sendResponse({ success: false, error: error.message });
                         });
                         return true; // Réponse asynchrone
                         
                     case 'stopChecking':
+                        console.log('🛑 Message d\'arrêt reçu dans content script');
                         this.stopChecking();
                         sendResponse({ success: true });
                         return false; // Réponse synchrone
                         
                     default:
-                        console.log('Content script - Action inconnue:', request.action || request.type);
+                        console.log('❓ Action inconnue:', request.action || request.type);
                         sendResponse({ error: 'Action inconnue' });
                         return false;
                 }
             } catch (error) {
-                console.error('Erreur dans le gestionnaire de messages:', error);
+                console.error('❌ Erreur dans le listener de messages:', error);
                 sendResponse({ error: error.message });
                 return false;
             }
         });
         
-        console.log('🔑 Steam Keys Checker - Content script chargé');
+        console.log('✅ SteamKeyChecker initialisé avec succès');
     }
     
 
@@ -81,6 +84,40 @@ class SteamKeyChecker {
             url: window.location.href,
             method: 'fetch' // Indiquer qu'on utilise fetch()
         };
+    }
+    
+    checkIfLoggedIn() {
+        // Indicateurs que l'utilisateur N'EST PAS connecté
+        const notLoggedInIndicators = [
+            'se connecter', 'sign in', 'login', 'g_showlogindialog',
+            'steam account', 'create account', 'forgotten password',
+            'mot de passe oublié', 'sign in to steam'
+        ];
+        
+        // Indicateurs que l'utilisateur EST connecté
+        const loggedInIndicators = [
+            'queryform', 'name="cdkey"', 'tableau de bord', 'partner dashboard',
+            'déconnexion', 'logout', 'mon compte', 'my account', 'julintuity'
+        ];
+        
+        const pageText = document.body.textContent.toLowerCase();
+        
+        // Vérifier les indicateurs de non-connexion
+        for (const indicator of notLoggedInIndicators) {
+            if (pageText.includes(indicator)) {
+                return false;
+            }
+        }
+        
+        // Compter les indicateurs de connexion
+        let loggedInScore = 0;
+        for (const indicator of loggedInIndicators) {
+            if (pageText.includes(indicator)) {
+                loggedInScore++;
+            }
+        }
+        
+        return loggedInScore >= 2;
     }
     
     async startKeyChecking(keys) {
@@ -108,10 +145,10 @@ class SteamKeyChecker {
         
         try {
             for (let i = 0; i < keys.length && this.isChecking; i++) {
+                console.log(`🔄 Itération ${i + 1}/${keys.length}, isChecking:`, this.isChecking);
+                
                 this.currentKeyIndex = i;
                 const key = keys[i];
-                
-                console.log(`[${i + 1}/${keys.length}] Vérification de la clé: ${key.value.substring(0, 10)}...`);
                 
                 // Informer le popup de la progression
                 chrome.runtime.sendMessage({
@@ -122,6 +159,12 @@ class SteamKeyChecker {
                 });
                 
                 const result = await this.checkSingleKey(key.value);
+                
+                // Si la vérification a été arrêtée, sortir de la boucle
+                if (result.status === "Stopped") {
+                    console.log("🛑 Vérification arrêtée pendant le traitement de la clé");
+                    break;
+                }
                 
                 this.results.push({
                     ...key,
@@ -137,23 +180,38 @@ class SteamKeyChecker {
                     index: i
                 });
                 
-                // Délai entre les vérifications (sauf pour la dernière)
+                // Délai aléatoire entre les vérifications (sauf pour la dernière)
                 if (i < keys.length - 1 && this.isChecking) {
-                    console.log(`⏳ Attente de ${this.delay / 1000}s avant la prochaine vérification...`);
-                    await this.sleep(this.delay);
+                    const delay = Math.floor(Math.random() * 9000) + 1000; // 1-10 secondes
+                    console.log(`⏱️ Attente ${delay/1000} secondes... (isChecking: ${this.isChecking})`);
+                    
+                    // Diviser le délai en petites portions pour permettre l'arrêt
+                    const delaySteps = Math.floor(delay / 100); // 100ms par étape
+                    for (let step = 0; step < delaySteps && this.isChecking; step++) {
+                        await this.sleep(100);
+                    }
+                    
+                    // Si l'arrêt a été demandé pendant l'attente, sortir
+                    if (!this.isChecking) {
+                        console.log("🛑 Arrêt détecté pendant l'attente");
+                        break;
+                    }
                 }
             }
             
             if (this.isChecking) {
-                console.log('✅ Vérification terminée avec succès');
                 chrome.runtime.sendMessage({
                     type: 'checkingCompleted',
+                    results: this.results
+                });
+            } else {
+                chrome.runtime.sendMessage({
+                    type: 'checkingStopped',
                     results: this.results
                 });
             }
             
         } catch (error) {
-            console.error('❌ Erreur pendant la vérification:', error);
             chrome.runtime.sendMessage({
                 type: 'checkingError',
                 error: error.message
@@ -165,11 +223,18 @@ class SteamKeyChecker {
     
     async checkSingleKey(steamKey) {
         try {
-            console.log(`🔍 Vérification de la clé via fetch(): ${steamKey}`);
+            // Vérifier si l'arrêt a été demandé
+            if (!this.isChecking) {
+                return { status: "Stopped", error: null };
+            }
             
             // 1. Construire l'URL de vérification
             const checkUrl = `https://partner.steamgames.com/querycdkey/cdkey?cdkey=${encodeURIComponent(steamKey)}`;
-            console.log(`📤 Requête GET vers: ${checkUrl}`);
+            
+            // Vérifier si l'arrêt a été demandé
+            if (!this.isChecking) {
+                return { status: "Stopped", error: null };
+            }
             
             // 2. Faire la requête avec les cookies de la session
             const response = await fetch(checkUrl, {
@@ -185,31 +250,30 @@ class SteamKeyChecker {
                 }
             });
             
+            // Vérifier si l'arrêt a été demandé
+            if (!this.isChecking) {
+                return { status: "Stopped", error: null };
+            }
+            
             if (!response.ok) {
                 throw new Error(`Erreur HTTP: ${response.status} ${response.statusText}`);
             }
             
             // 3. Parser la réponse HTML
             const htmlText = await response.text();
-            console.log(`📥 Réponse reçue (${htmlText.length} caractères), parsing du HTML...`);
             
-            // Debug: Afficher un extrait de la réponse pour les 3 premières clés
-            if (this.results.length < 3) {
-                console.log(`🔍 DEBUG - Extrait HTML pour ${steamKey}:`, htmlText.substring(0, 1000));
+            // Vérifier si l'arrêt a été demandé
+            if (!this.isChecking) {
+                return { status: "Stopped", error: null };
             }
             
-            // 4. Extraire le statut depuis le HTML
             const status = this.parseStatusFromHTML(htmlText, steamKey);
-            console.log(`✅ Statut extrait: ${status} pour ${steamKey}`);
             
-            return { status };
+            return { status, error: null };
             
         } catch (error) {
-            console.error(`❌ Erreur lors de la vérification de la clé ${steamKey}:`, error);
-            return { 
-                status: 'Error',
-                error: error.message 
-            };
+            console.error(`❌ Erreur lors de la vérification de ${steamKey}:`, error);
+            return { status: "Error", error: error.message };
         }
     }
     
@@ -339,13 +403,25 @@ class SteamKeyChecker {
     }
     
     stopChecking() {
-        console.log('🛑 Arrêt de la vérification demandé');
+        console.log('🛑 stopChecking() appelée');
+        console.log('🛑 Arrêt de la vérification demandé...');
+        console.log('🛑 État isChecking avant arrêt:', this.isChecking);
+        
         this.isChecking = false;
         
+        console.log('🛑 État isChecking après arrêt:', this.isChecking);
+        
+        // Informer le popup que l'arrêt a été effectué
         chrome.runtime.sendMessage({
             type: 'checkingStopped',
             results: this.results
+        }).then(() => {
+            console.log('✅ Message checkingStopped envoyé avec succès');
+        }).catch(error => {
+            console.log('⚠️ Erreur lors de l\'envoi du message d\'arrêt:', error);
         });
+        
+        console.log(`✅ Vérification arrêtée après ${this.results.length} clés traitées`);
     }
     
     sleep(ms) {
@@ -363,7 +439,7 @@ if (!window.steamKeyCheckerInstance) {
         window.steamKeyCheckerInstance = new SteamKeyChecker();
     }
 } else {
-    console.log('Instance de SteamKeyChecker déjà existante');
+    console.log('Instance de SteamKeyChecker déjà existante, réutilisation');
 }
 
 } // Fermeture du bloc de protection contre la double injection 
