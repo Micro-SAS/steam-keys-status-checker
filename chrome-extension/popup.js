@@ -20,6 +20,9 @@ class SteamKeysPopup {
         this.initializeElements();
         this.attachEventListeners();
         this.checkSteamworksConnectionFirst();
+        
+        // Initialiser l'option de téléchargement automatique
+        this.initializeAutoDownloadOption();
     }
     
     initializeElements() {
@@ -37,6 +40,7 @@ class SteamKeysPopup {
         this.key2Column = document.getElementById('key2Column');
         this.checkColumn = document.getElementById('checkColumn');
         this.hasKey2Checkbox = document.getElementById('hasKey2Checkbox');
+        this.autoDownloadCheckbox = document.getElementById('autoDownloadCheckbox');
         
         // Connection elements
         this.connectionStatus = document.getElementById('connectionStatus');
@@ -104,6 +108,10 @@ class SteamKeysPopup {
         this.hasKey2Checkbox.addEventListener('change', (e) => {
             this.key2Column.disabled = !e.target.checked;
             this.updateConfig();
+        });
+        this.autoDownloadCheckbox.addEventListener('change', (e) => {
+            localStorage.setItem('autoDownload', e.target.checked.toString());
+            console.log('🔧 Option téléchargement automatique changée:', e.target.checked);
         });
         
         // Connection
@@ -251,9 +259,41 @@ class SteamKeysPopup {
         try {
             const state = await chrome.runtime.sendMessage({ type: 'getExtensionState' });
             
+            // Si une vérification est en cours, restaurer l'état de progression
+            if (state.isChecking) {
+                this.isChecking = true;
+                this.results = state.currentResults || [];
+                
+                // Restaurer les données CSV et config
+                if (state.csvData) {
+                    this.csvData = state.csvData;
+                    this.csvHeaders = state.csvData.headers;
+                }
+                if (state.config) {
+                    this.config = state.config;
+                }
+                
+                // Afficher l'étape de traitement avec les données restaurées
+                this.showProcessingStep();
+                this.showProgressWithRestoredData(state);
+                
+                this.updateStatus('processing', `Vérification en cours: ${state.checkedKeys}/${state.totalKeys} clés`);
+                return;
+            }
+            
             // Restaurer les résultats s'ils existent
             if (state.currentResults && state.currentResults.length > 0) {
                 this.results = state.currentResults;
+                
+                // S'assurer que les données CSV sont restaurées avant d'afficher les résultats
+                if (state.csvData) {
+                    this.csvData = state.csvData;
+                    this.csvHeaders = state.csvData.headers;
+                }
+                if (state.config) {
+                    this.config = state.config;
+                }
+                
                 this.showResults();
                 return; // Ne pas restaurer le CSV si on a des résultats
             }
@@ -286,6 +326,10 @@ class SteamKeysPopup {
                         this.showProcessingStep();
                     }
                 }
+                
+                // Restaurer l'option de téléchargement automatique
+                const autoDownload = localStorage.getItem('autoDownload') === 'true';
+                this.autoDownloadCheckbox.checked = autoDownload;
                 
                 this.updateStatus('success', 'État restauré');
             }
@@ -803,6 +847,17 @@ class SteamKeysPopup {
         
         this.updateStatus('success', `Vérification terminée - ${this.results.length} clés traitées`);
         
+        // Télécharger automatiquement le CSV si l'option est activée
+        if (localStorage.getItem('autoDownload') === 'true') {
+            console.log('🔄 Téléchargement automatique activé, lancement dans 1 seconde...');
+            setTimeout(async () => {
+                console.log('📥 Lancement du téléchargement automatique...');
+                await this.downloadResults();
+            }, 1000);
+        } else {
+            console.log('❌ Téléchargement automatique désactivé');
+        }
+        
         // Réinitialiser les boutons
         this.startCheckingBtn.style.display = 'inline-flex';
         this.stopCheckingBtn.style.display = 'none';
@@ -845,8 +900,20 @@ class SteamKeysPopup {
         });
     }
     
-    downloadResults() {
+    async downloadResults() {
         try {
+            // Vérifier que les données nécessaires sont disponibles
+            if (!this.csvData || !this.csvHeaders || !this.results) {
+                console.log('Données manquantes, tentative de restauration...');
+                
+                // Essayer de restaurer les données depuis le background script
+                const restored = await this.forceRestoreData();
+                
+                if (!restored || !this.csvData || !this.csvHeaders || !this.results) {
+                    throw new Error('Impossible de récupérer les données nécessaires pour le téléchargement');
+                }
+            }
+            
             // Créer le CSV avec les résultats
             const csvContent = this.generateResultsCSV();
             
@@ -863,11 +930,14 @@ class SteamKeysPopup {
             link.click();
             document.body.removeChild(link);
             
+            // Nettoyer l'URL créée
+            URL.revokeObjectURL(url);
+            
             this.updateStatus('success', 'Résultats téléchargés');
             
         } catch (error) {
             console.error('Erreur lors du téléchargement:', error);
-            this.showError('Erreur lors du téléchargement des résultats');
+            this.showError(`Erreur lors du téléchargement des résultats: ${error.message}`);
         }
     }
     
@@ -950,6 +1020,70 @@ class SteamKeysPopup {
     
     hideErrorModal() {
         this.errorModal.style.display = 'none';
+    }
+
+    showProgressWithRestoredData(state) {
+        // Afficher la section de progression
+        this.progressSection.style.display = 'block';
+        
+        // Masquer le bouton de démarrage, afficher celui d'arrêt
+        this.startCheckingBtn.style.display = 'none';
+        this.stopCheckingBtn.style.display = 'inline-flex';
+        
+        // Mettre à jour la barre de progression
+        this.updateProgress(state.checkedKeys, state.totalKeys);
+        
+        // Mettre à jour le texte de la clé actuelle
+        if (state.currentKey) {
+            this.currentKeyText.textContent = `Vérification: ${state.currentKey}`;
+        }
+        
+        // Mettre à jour les compteurs avec les résultats existants
+        this.resetCounters();
+        this.results.forEach(result => {
+            this.updateCounters(result.status);
+        });
+        
+        // Calculer le temps écoulé si disponible
+        if (state.startTime) {
+            const elapsedTime = Math.floor((Date.now() - state.startTime) / 1000);
+            const elapsedMinutes = Math.floor(elapsedTime / 60);
+            const elapsedSeconds = elapsedTime % 60;
+            
+            // Ajouter l'information de temps dans le statut
+            const timeInfo = ` (${elapsedMinutes}m ${elapsedSeconds}s)`;
+            this.updateStatus('processing', `Vérification en cours: ${state.checkedKeys}/${state.totalKeys} clés${timeInfo}`);
+        }
+    }
+
+    async forceRestoreData() {
+        try {
+            const state = await chrome.runtime.sendMessage({ type: 'getExtensionState' });
+            
+            if (state.csvData) {
+                this.csvData = state.csvData;
+                this.csvHeaders = state.csvData.headers;
+            }
+            
+            if (state.config) {
+                this.config = state.config;
+            }
+            
+            if (state.currentResults) {
+                this.results = state.currentResults;
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('Erreur lors de la restauration forcée:', error);
+            return false;
+        }
+    }
+
+    initializeAutoDownloadOption() {
+        const autoDownload = localStorage.getItem('autoDownload') === 'true';
+        this.autoDownloadCheckbox.checked = autoDownload;
+        console.log('🔧 Option téléchargement automatique initialisée:', autoDownload);
     }
 }
 

@@ -137,7 +137,7 @@ class SteamKeyChecker {
         
         console.log(`🚀 Début de la vérification de ${keys.length} clés`);
         
-        // Informer le popup du début
+        // Informer le background script du début
         chrome.runtime.sendMessage({
             type: 'checkingStarted',
             total: keys.length
@@ -150,7 +150,7 @@ class SteamKeyChecker {
                 this.currentKeyIndex = i;
                 const key = keys[i];
                 
-                // Informer le popup de la progression
+                // Informer le background script de la progression
                 chrome.runtime.sendMessage({
                     type: 'progress',
                     current: i + 1,
@@ -172,7 +172,7 @@ class SteamKeyChecker {
                     error: result.error
                 });
                 
-                // Informer le popup du résultat
+                // Informer le background script du résultat
                 chrome.runtime.sendMessage({
                     type: 'keyChecked',
                     key: key,
@@ -200,11 +200,13 @@ class SteamKeyChecker {
             }
             
             if (this.isChecking) {
+                console.log('✅ Vérification terminée avec succès');
                 chrome.runtime.sendMessage({
                     type: 'checkingCompleted',
                     results: this.results
                 });
             } else {
+                console.log('🛑 Vérification arrêtée par l\'utilisateur');
                 chrome.runtime.sendMessage({
                     type: 'checkingStopped',
                     results: this.results
@@ -212,6 +214,7 @@ class SteamKeyChecker {
             }
             
         } catch (error) {
+            console.error('❌ Erreur lors de la vérification:', error);
             chrome.runtime.sendMessage({
                 type: 'checkingError',
                 error: error.message
