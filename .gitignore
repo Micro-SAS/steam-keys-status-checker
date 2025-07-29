@@ -77,4 +77,8 @@ Thumbs.db
 # Données temporaires
 *.csv.bak
 *_backup.csv
-temp_*.csv 
+temp_*.csv
+
+# Dossier de sortie (garder le dossier, ignorer le contenu)
+output/*
+!output/.gitkeep 

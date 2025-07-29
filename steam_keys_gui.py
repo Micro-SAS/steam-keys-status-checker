@@ -578,8 +578,9 @@ class SteamKeysCheckerApp:
     
     def save_results(self, df):
         """Sauvegarde les résultats dans un fichier CSV."""
+        os.makedirs('output', exist_ok=True)
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        output_filename = f'steam_keys_with_status_{timestamp}.csv'
+        output_filename = f'output/steam_keys_with_status_{timestamp}.csv'
         df.to_csv(output_filename, index=False)
         
         self.log_message(f"💾 Résultats sauvegardés dans: {output_filename}")

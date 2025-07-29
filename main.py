@@ -394,7 +394,9 @@ def main():
         logger.info("Browser closed")
         
         # Save results
-        output_file = CSV_FILE_PATH.replace('.csv', '_with_status.csv')
+        os.makedirs('output', exist_ok=True)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        output_file = f'output/steam_keys_with_status_{timestamp}.csv'
         df.to_csv(output_file, index=False)
         logger.info(f"Results saved: {output_file}")
         print(f"💾 Results saved in: {output_file}")
