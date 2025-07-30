@@ -56,7 +56,7 @@ class SteamKeysPopup {
         this.connectSteamworksBtn = document.getElementById('connectSteamworksBtn');
         
         // Processing elements
-        this.keysSummary = document.getElementById('keysSummary');
+
         this.startCheckingBtn = document.getElementById('startCheckingBtn');
         this.stopCheckingBtn = document.getElementById('stopCheckingBtn');
         
@@ -614,6 +614,9 @@ class SteamKeysPopup {
         // Vérifier si on peut passer à l'étape suivante
         if (this.config.key1Column) {
             this.showProcessingStep();
+        } else {
+            // Mettre à jour le texte du bouton même si on n'a pas encore de colonne sélectionnée
+            this.prepareKeysSummary();
         }
     }
     
@@ -710,28 +713,17 @@ class SteamKeysPopup {
         this.stepProcessing.style.display = 'block';
         this.currentStep = 'processing';
         
-        // Préparer le résumé des clés
-        this.prepareKeysSummary();
+        // Préparer le résumé des clés seulement si on a une configuration
+        if (this.config && this.config.key1Column) {
+            this.prepareKeysSummary();
+        }
     }
     
     prepareKeysSummary() {
         const keys = this.extractKeysFromCSV();
         
-        let summary = `<div class="keys-count">
-            <strong>${keys.length} keys</strong> to verify
-        </div>`;
-        
-        if (this.config.key1Column) {
-            const key1Count = keys.filter(k => k.column === this.config.key1Column).length;
-            summary += `<div class="column-count">• ${key1Count} keys in "${this.config.key1Column}"</div>`;
-        }
-        
-        if (this.config.hasKey2 && this.config.key2Column) {
-            const key2Count = keys.filter(k => k.column === this.config.key2Column).length;
-            summary += `<div class="column-count">• ${key2Count} keys in "${this.config.key2Column}"</div>`;
-        }
-        
-        this.keysSummary.innerHTML = summary;
+        // Mettre à jour le texte du bouton avec le nombre de clés en gras
+        this.startCheckingBtn.innerHTML = `🔍 Check the status of <strong>${keys.length}</strong> Steam Keys`;
     }
     
     extractKeysFromCSV() {
@@ -1123,6 +1115,9 @@ class SteamKeysPopup {
         
         // Réinitialiser l'état
         chrome.runtime.sendMessage({ type: 'resetState' });
+        
+        // Réinitialiser le texte du bouton
+        this.startCheckingBtn.innerHTML = '🔍 Start verification';
         
         this.updateStatus('success', 'Prêt pour une nouvelle vérification');
         this.currentStep = 'upload';
