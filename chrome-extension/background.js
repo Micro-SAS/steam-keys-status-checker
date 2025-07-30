@@ -241,7 +241,7 @@ async function restoreExtensionState() {
             const hoursSinceLastUpdate = (Date.now() - result.lastUpdate) / (1000 * 60 * 60);
             if (hoursSinceLastUpdate < 24) {
                 extensionState = { ...extensionState, ...result.extensionState };
-                console.log(`État restauré: ${extensionState.currentResults.length} résultats`);
+                console.log(`State restored: ${extensionState.currentResults.length} results`);
                 
                 // Mettre à jour l'icône si une vérification était en cours
                 if (extensionState.isChecking) {
@@ -274,7 +274,7 @@ function updateExtensionIcon(isChecking) {
         chrome.action.setBadgeBackgroundColor({ color: '#67c1f5' });
         
         // Titre avec information sur la progression
-        const title = `Vérification en cours: ${extensionState.checkedKeys}/${extensionState.totalKeys} clés`;
+        const title = `Verification in progress: ${extensionState.checkedKeys}/${extensionState.totalKeys} keys`;
         chrome.action.setTitle({ title: title });
     } else {
         // Icône normale
@@ -301,13 +301,13 @@ function notifyUserOfCompletion(results) {
     const notActivated = results.filter(r => r.status === 'Not activated').length;
     const errors = results.filter(r => r.status !== 'Activated' && r.status !== 'Not activated').length;
     
-    const message = `Vérification terminée! ${results.length} clés traitées.\n` +
-                   `✅ ${activated} activées\n` +
-                   `❌ ${notActivated} non activées\n` +
-                   `⚠️ ${errors} erreurs`;
+    const message = `Verification completed! ${results.length} keys processed.\n` +
+                   `✅ ${activated} activated\n` +
+                   `❌ ${notActivated} not activated\n` +
+                   `⚠️ ${errors} errors`;
     
     // Afficher une notification
-    showNotification('Steam Keys Checker - Terminé', message, 'success');
+    showNotification('Steam Keys Checker - Completed', message, 'success');
     
     // Jouer un son de notification (si supporté)
     playNotificationSound();
@@ -354,7 +354,7 @@ function playNotificationSound() {
         oscillator.start(audioContext.currentTime);
         oscillator.stop(audioContext.currentTime + 0.2);
     } catch (error) {
-        console.log('Son de notification non supporté');
+        console.log('Notification sound not supported');
     }
 }
 
@@ -362,7 +362,7 @@ function playNotificationSound() {
 chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
     // Si l'onglet Steamworks est fermé pendant une vérification
     if (extensionState.isChecking) {
-        console.log('Onglet Steamworks fermé pendant la vérification');
+        console.log('Steamworks tab closed during verification');
         extensionState.isChecking = false;
         
         // Sauvegarder l'état

@@ -39,7 +39,11 @@ class SteamKeysPopup {
         // Configuration elements
         this.key1Column = document.getElementById('key1Column');
         this.key2Column = document.getElementById('key2Column');
-        this.checkColumn = document.getElementById('checkColumn');
+        this.key2ColumnGroup = document.getElementById('key2ColumnGroup');
+        this.checkAllKeys = document.getElementById('checkAllKeys');
+        this.checkFilteredKeys = document.getElementById('checkFilteredKeys');
+        this.filterGroup = document.getElementById('filterGroup');
+        this.filterColumn = document.getElementById('filterColumn');
         this.hasKey2Checkbox = document.getElementById('hasKey2Checkbox');
         this.autoDownloadCheckbox = document.getElementById('autoDownloadCheckbox');
         
@@ -103,11 +107,31 @@ class SteamKeysPopup {
         this.fileDropZone.addEventListener('drop', (e) => this.handleFileDrop(e));
         
         // Configuration
-        this.key1Column.addEventListener('change', () => this.updateConfig());
-        this.key2Column.addEventListener('change', () => this.updateConfig());
-        this.checkColumn.addEventListener('change', () => this.updateConfig());
+        this.key1Column.addEventListener('change', () => {
+            this.updateKey2ColumnOptions();
+            this.updateFilterColumnOptions();
+            this.updateConfig();
+        });
+        this.key2Column.addEventListener('change', () => {
+            this.updateFilterColumnOptions();
+            this.updateConfig();
+        });
+        this.filterColumn.addEventListener('change', () => this.updateConfig());
         this.hasKey2Checkbox.addEventListener('change', (e) => {
-            this.key2Column.disabled = !e.target.checked;
+            this.key2ColumnGroup.style.display = e.target.checked ? 'block' : 'none';
+            if (!e.target.checked) {
+                this.key2Column.value = '';
+            }
+            this.updateConfig();
+        });
+        
+        // Check scope radio buttons
+        this.checkAllKeys.addEventListener('change', (e) => {
+            this.filterGroup.style.display = 'none';
+            this.updateConfig();
+        });
+        this.checkFilteredKeys.addEventListener('change', (e) => {
+            this.filterGroup.style.display = 'block';
             this.updateConfig();
         });
         this.autoDownloadCheckbox.addEventListener('change', (e) => {
@@ -139,7 +163,7 @@ class SteamKeysPopup {
     }
     
         async checkSteamworksConnectionFirst() {
-        this.updateStatus('processing', 'Vérification de la connexion Steamworks...');
+        this.updateStatus('processing', 'Checking Steamworks connection...');
         
         try {
             // Utiliser le content script pour vérifier la connexion
@@ -147,7 +171,7 @@ class SteamKeysPopup {
             
             if (!tab.url || !tab.url.includes('partner.steamgames.com')) {
                 this.showConnectionInstructions();
-                this.updateStatus('warning', 'Ouvrez Steamworks pour vérifier la connexion');
+                this.updateStatus('warning', 'Open Steamworks to check connection');
                 return;
             }
             
@@ -156,23 +180,23 @@ class SteamKeysPopup {
             
             if (response && response.isLoggedIn) {
                 this.showConnectionSuccess();
-                this.updateStatus('success', 'Connecté à Steamworks');
+                this.updateStatus('success', 'Connected to Steamworks');
                 
                 // Passer automatiquement à l'étape 2 après un délai
                 setTimeout(() => {
                     this.stepUpload.style.display = 'block';
-                    this.updateStatus('info', 'Importez votre fichier CSV');
+                    this.updateStatus('info', 'Import your CSV file');
                 }, 1500);
                 
                 await this.checkExtensionState();
             } else {
                 this.showConnectionInstructions();
-                this.updateStatus('warning', 'Connexion à Steamworks requise');
+                this.updateStatus('warning', 'Steamworks connection required');
             }
             
         } catch (error) {
             this.showConnectionInstructions();
-            this.updateStatus('warning', 'Ouvrez Steamworks pour vérifier la connexion');
+            this.updateStatus('warning', 'Open Steamworks to check connection');
         }
     }
     
@@ -321,9 +345,19 @@ class SteamKeysPopup {
                     this.config = state.config;
                     this.key1Column.value = state.config.key1Column || '';
                     this.key2Column.value = state.config.key2Column || '';
-                    this.checkColumn.value = state.config.checkColumn || '';
+                    
+                    // Restaurer le scope de vérification
+                    if (state.config.checkScope === 'filtered') {
+                        this.checkFilteredKeys.checked = true;
+                        this.filterGroup.style.display = 'block';
+                        this.filterColumn.value = state.config.filterColumn || '';
+                    } else {
+                        this.checkAllKeys.checked = true;
+                        this.filterGroup.style.display = 'none';
+                    }
+                    
                     this.hasKey2Checkbox.checked = state.config.hasKey2 || false;
-                    this.key2Column.disabled = !state.config.hasKey2;
+                    this.key2ColumnGroup.style.display = (state.config.hasKey2 || false) ? 'block' : 'none';
                     
                     if (state.config.key1Column) {
                         this.showProcessingStep();
@@ -334,10 +368,10 @@ class SteamKeysPopup {
                 const autoDownload = localStorage.getItem('autoDownload') === 'true';
                 this.autoDownloadCheckbox.checked = autoDownload;
                 
-                this.updateStatus('success', 'État restauré');
+                this.updateStatus('success', 'State restored');
             }
         } catch (error) {
-            console.log('Aucun état précédent trouvé');
+            console.log('No previous state found');
         }
     }
     
@@ -407,12 +441,12 @@ class SteamKeysPopup {
             // Passer à l'étape de configuration
             this.showConfigStep();
             
-            this.updateStatus('success', 'Fichier CSV chargé avec succès');
+            this.updateStatus('success', 'CSV file loaded successfully');
             
         } catch (error) {
-            console.error('Erreur lors du chargement du fichier:', error);
-            this.showError(`Erreur lors du chargement: ${error.message}`);
-            this.updateStatus('error', 'Erreur lors du chargement du fichier');
+            console.error('Error loading file:', error);
+            this.showError(`Loading error: ${error.message}`);
+            this.updateStatus('error', 'Error loading file');
         }
     }
     
@@ -420,7 +454,7 @@ class SteamKeysPopup {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = (e) => resolve(e.target.result);
-            reader.onerror = (e) => reject(new Error('Erreur de lecture du fichier'));
+            reader.onerror = (e) => reject(new Error('File reading error'));
             reader.readAsText(file);
         });
     }
@@ -458,30 +492,92 @@ class SteamKeysPopup {
     
     populateColumnSelectors() {
         // Vider les sélecteurs
-        [this.key1Column, this.key2Column, this.checkColumn].forEach(select => {
+        [this.key1Column, this.key2Column, this.filterColumn].forEach(select => {
             while (select.children.length > 1) {
                 select.removeChild(select.lastChild);
             }
         });
         
-        // Ajouter les options
+        // Ajouter les options pour la première colonne de clés
         this.csvHeaders.forEach(header => {
-            [this.key1Column, this.key2Column, this.checkColumn].forEach(select => {
-                const option = document.createElement('option');
-                option.value = header;
-                option.textContent = header;
-                select.appendChild(option);
-            });
+            const option = document.createElement('option');
+            option.value = header;
+            option.textContent = header;
+            this.key1Column.appendChild(option);
         });
+        
+        // Ajouter les options pour la deuxième colonne de clés (exclure la première)
+        this.updateKey2ColumnOptions();
+        
+        // Ajouter les options pour le filtre (exclure les colonnes de clés)
+        this.updateFilterColumnOptions();
         
         // Auto-sélection intelligente
         this.autoSelectColumns();
     }
     
+    updateKey2ColumnOptions() {
+        // Sauvegarder la valeur actuellement sélectionnée
+        const currentValue = this.key2Column.value;
+        
+        // Vider le select de la deuxième colonne
+        while (this.key2Column.children.length > 1) {
+            this.key2Column.removeChild(this.key2Column.lastChild);
+        }
+        
+        // Ajouter les options en excluant la première colonne de clés
+        this.csvHeaders.forEach(header => {
+            if (header !== this.key1Column.value) {
+                const option = document.createElement('option');
+                option.value = header;
+                option.textContent = header;
+                this.key2Column.appendChild(option);
+            }
+        });
+        
+        // Restaurer la valeur sélectionnée si elle existe encore dans les nouvelles options
+        if (currentValue && this.key2Column.querySelector(`option[value="${currentValue}"]`)) {
+            this.key2Column.value = currentValue;
+        } else {
+            this.key2Column.value = '';
+        }
+    }
+    
+    updateFilterColumnOptions() {
+        // Sauvegarder la valeur actuellement sélectionnée
+        const currentValue = this.filterColumn.value;
+        
+        // Vider le select de filtrage
+        while (this.filterColumn.children.length > 1) {
+            this.filterColumn.removeChild(this.filterColumn.lastChild);
+        }
+        
+        // Obtenir les colonnes sélectionnées pour les clés
+        const selectedKeyColumns = [];
+        if (this.key1Column.value) selectedKeyColumns.push(this.key1Column.value);
+        if (this.key2Column.value) selectedKeyColumns.push(this.key2Column.value);
+        
+        // Ajouter les options en excluant les colonnes de clés
+        this.csvHeaders.forEach(header => {
+            if (!selectedKeyColumns.includes(header)) {
+                const option = document.createElement('option');
+                option.value = header;
+                option.textContent = header;
+                this.filterColumn.appendChild(option);
+            }
+        });
+        
+        // Restaurer la valeur sélectionnée si elle existe encore dans les nouvelles options
+        if (currentValue && this.filterColumn.querySelector(`option[value="${currentValue}"]`)) {
+            this.filterColumn.value = currentValue;
+        } else {
+            this.filterColumn.value = '';
+        }
+    }
+    
     autoSelectColumns() {
         // Recherche intelligente des colonnes de clés
         const keyPatterns = ['key', 'clé', 'steam', 'code'];
-        const checkPatterns = ['check', 'vérif', 'verify', 'to check'];
         
         // Sélection automatique de la première colonne de clé
         const keyColumn = this.csvHeaders.find(header => 
@@ -491,13 +587,9 @@ class SteamKeysPopup {
             this.key1Column.value = keyColumn;
         }
         
-        // Sélection automatique de la colonne de vérification
-        const checkColumn = this.csvHeaders.find(header => 
-            checkPatterns.some(pattern => header.toLowerCase().includes(pattern))
-        );
-        if (checkColumn) {
-            this.checkColumn.value = checkColumn;
-        }
+        // Mettre à jour les options après la sélection automatique
+        this.updateKey2ColumnOptions();
+        this.updateFilterColumnOptions();
         
         this.updateConfig();
     }
@@ -505,8 +597,13 @@ class SteamKeysPopup {
     async updateConfig() {
         this.config.key1Column = this.key1Column.value;
         this.config.key2Column = this.key2Column.value;
-        this.config.checkColumn = this.checkColumn.value;
+        this.config.checkScope = this.checkAllKeys.checked ? 'all' : 'filtered';
+        this.config.filterColumn = this.filterColumn.value;
         this.config.hasKey2 = this.hasKey2Checkbox.checked;
+        
+        // Mettre à jour les options quand les colonnes de clés changent
+        this.updateKey2ColumnOptions();
+        this.updateFilterColumnOptions();
         
         // Sauvegarder la configuration dans le background script
         await chrome.runtime.sendMessage({
@@ -534,11 +631,11 @@ class SteamKeysPopup {
     
     async checkSteamworksConnection() {
         try {
-            this.updateStatus('processing', 'Vérification de la connexion Steamworks...');
+            this.updateStatus('processing', 'Checking Steamworks connection...');
             
             // Obtenir l'onglet actif
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            console.log('Onglet actif:', tab.url);
+            console.log('Active tab:', tab.url);
             
             // Vérifier si on est sur Steamworks
             if (tab.url && tab.url.includes('partner.steamgames.com')) {
@@ -548,7 +645,7 @@ class SteamKeysPopup {
                         target: { tabId: tab.id },
                         files: ['content.js']
                     }).catch(() => {
-                        console.log('Content script déjà injecté');
+                        console.log('Content script already injected');
                     });
                     
                     // Attendre un peu pour que le script se charge
@@ -556,35 +653,35 @@ class SteamKeysPopup {
                     
                     // Envoyer un message au content script
                     const response = await chrome.tabs.sendMessage(tab.id, { action: 'getPageInfo' });
-                    console.log('Réponse du content script:', response);
+                    console.log('Content script response:', response);
                     
                     if (response && response.hasKeyInput) {
                         // Masquer le spinner et afficher l'étape suivante
                         this.connectionStatus.style.display = 'none';
                         this.connectionInstructions.style.display = 'none';
                         this.showProcessingStep();
-                        this.updateStatus('success', 'Connecté à Steamworks');
+                        this.updateStatus('success', 'Connected to Steamworks');
                     } else if (response && response.isOnSteamworks) {
                         this.showConnectionInstructions();
-                        this.updateStatus('warning', 'Naviguez vers la page de vérification des clés');
+                        this.updateStatus('warning', 'Navigate to the key verification page');
                     } else {
                         this.showConnectionInstructions();
-                        this.updateStatus('warning', 'Veuillez vous rendre sur partner.steamgames.com');
+                        this.updateStatus('warning', 'Please go to partner.steamgames.com');
                     }
                 } catch (msgError) {
-                    console.error('Erreur de communication avec le content script:', msgError);
+                    console.error('Communication error with content script:', msgError);
                     this.showConnectionInstructions();
-                    this.updateStatus('warning', 'Rechargez la page Steamworks et réessayez');
+                    this.updateStatus('warning', 'Reload the Steamworks page and try again');
                 }
             } else {
                 this.showConnectionInstructions();
-                this.updateStatus('warning', 'Connexion à Steamworks requise');
+                this.updateStatus('warning', 'Steamworks connection required');
             }
             
         } catch (error) {
-            console.error('Erreur de connexion:', error);
+            console.error('Connection error:', error);
             this.showConnectionInstructions();
-            this.updateStatus('warning', 'Erreur de connexion - Réessayez');
+            this.updateStatus('warning', 'Connection error - Try again');
         }
     }
     
@@ -621,17 +718,17 @@ class SteamKeysPopup {
         const keys = this.extractKeysFromCSV();
         
         let summary = `<div class="keys-count">
-            <strong>${keys.length} clés</strong> à vérifier
+            <strong>${keys.length} keys</strong> to verify
         </div>`;
         
         if (this.config.key1Column) {
             const key1Count = keys.filter(k => k.column === this.config.key1Column).length;
-            summary += `<div class="column-count">• ${key1Count} clés dans "${this.config.key1Column}"</div>`;
+            summary += `<div class="column-count">• ${key1Count} keys in "${this.config.key1Column}"</div>`;
         }
         
         if (this.config.hasKey2 && this.config.key2Column) {
             const key2Count = keys.filter(k => k.column === this.config.key2Column).length;
-            summary += `<div class="column-count">• ${key2Count} clés dans "${this.config.key2Column}"</div>`;
+            summary += `<div class="column-count">• ${key2Count} keys in "${this.config.key2Column}"</div>`;
         }
         
         this.keysSummary.innerHTML = summary;
@@ -641,11 +738,16 @@ class SteamKeysPopup {
         const keys = [];
         const key1Index = this.csvHeaders.indexOf(this.config.key1Column);
         const key2Index = this.config.hasKey2 ? this.csvHeaders.indexOf(this.config.key2Column) : -1;
-        const checkIndex = this.config.checkColumn ? this.csvHeaders.indexOf(this.config.checkColumn) : -1;
+        const filterIndex = this.config.checkScope === 'filtered' && this.config.filterColumn ? 
+            this.csvHeaders.indexOf(this.config.filterColumn) : -1;
         
         this.csvData.rows.forEach((row, rowIndex) => {
-            // Vérifier si cette ligne doit être vérifiée
-            const shouldCheck = checkIndex === -1 || this.shouldCheckRow(row[checkIndex]);
+            // Vérifier si cette ligne doit être vérifiée selon le scope
+            let shouldCheck = true;
+            
+            if (this.config.checkScope === 'filtered' && filterIndex !== -1) {
+                shouldCheck = this.shouldCheckRow(row[filterIndex]);
+            }
             
             if (shouldCheck) {
                 // Ajouter la clé principale
@@ -685,7 +787,7 @@ class SteamKeysPopup {
             this.isChecking = true;
             this.autoDownloadTriggered = false; // Réinitialiser le flag pour une nouvelle vérification
             localStorage.setItem('autoDownloadTriggered', 'false'); // Réinitialiser dans localStorage
-            this.updateStatus('processing', 'Vérification en cours...');
+            this.updateStatus('processing', 'Verification in progress...');
             
             // Masquer le bouton de démarrage, afficher celui d'arrêt
             this.startCheckingBtn.style.display = 'none';
@@ -704,7 +806,7 @@ class SteamKeysPopup {
             });
             
             if (!tabs || tabs.length === 0) {
-                throw new Error('Aucun onglet Steamworks trouvé. Veuillez ouvrir Steamworks.');
+                throw new Error('No Steamworks tab found. Please open Steamworks.');
             }
             
             // Chercher l'onglet avec /querycdkey/ exact en priorité
@@ -729,15 +831,15 @@ class SteamKeysPopup {
             try {
                 const pingResponse = await chrome.tabs.sendMessage(tab.id, { type: 'ping' });
                 if (!pingResponse || pingResponse.type !== 'pong') {
-                    throw new Error('Content script ne répond pas correctement');
+                    throw new Error('Content script is not responding correctly');
                 }
             } catch (pingError) {
                 if (pingError.message.includes('Could not establish connection')) {
-                    throw new Error('Le content script n\'est pas chargé. Assurez-vous d\'être sur partner.steamgames.com et rechargez la page.');
+                    throw new Error('Content script is not loaded. Make sure you are on partner.steamgames.com and reload the page.');
                 } else if (pingError.message.includes('Receiving end does not exist')) {
-                    throw new Error('Aucun content script trouvé. Ouvrez partner.steamgames.com et réessayez.');
+                    throw new Error('No content script found. Open partner.steamgames.com and try again.');
                 } else {
-                    throw new Error(`Erreur de communication: ${pingError.message}. Rechargez la page Steamworks.`);
+                    throw new Error(`Communication error: ${pingError.message}. Reload the Steamworks page.`);
                 }
             }
             
@@ -748,7 +850,7 @@ class SteamKeysPopup {
             });
             
         } catch (error) {
-            this.showError(`Erreur: ${error.message}`);
+            this.showError(`Error: ${error.message}`);
             this.stopChecking();
         }
     }
@@ -763,10 +865,10 @@ class SteamKeysPopup {
                 action: 'stopChecking'
             });
             
-            this.updateStatus('warning', 'Vérification arrêtée');
+            this.updateStatus('warning', 'Verification stopped');
             
         } catch (error) {
-            console.error('Erreur lors de l\'arrêt:', error);
+            console.error('Error stopping:', error);
         } finally {
             this.startCheckingBtn.style.display = 'inline-flex';
             this.stopCheckingBtn.style.display = 'none';
@@ -777,7 +879,7 @@ class SteamKeysPopup {
         switch (message.type) {
             case 'progress':
                 this.updateProgress(message.current, message.total);
-                this.currentKeyText.textContent = `Vérification: ${message.currentKey}`;
+                this.currentKeyText.textContent = `Checking: ${message.currentKey}`;
                 break;
                 
             case 'keyChecked':
@@ -857,21 +959,21 @@ class SteamKeysPopup {
         // Remplir le tableau de prévisualisation
         this.populateResultsTable();
         
-        this.updateStatus('success', `Vérification terminée - ${this.results.length} clés traitées`);
+        this.updateStatus('success', `Verification completed - ${this.results.length} keys processed`);
         
         // Télécharger automatiquement le CSV si l'option est activée ET que ce n'est pas déjà fait
         if (localStorage.getItem('autoDownload') === 'true' && !this.autoDownloadTriggered) {
-            console.log('🔄 Téléchargement automatique activé, lancement dans 1 seconde...');
+            console.log('🔄 Auto-download enabled, launching in 1 second...');
             this.autoDownloadTriggered = true; // Marquer comme déclenché
             localStorage.setItem('autoDownloadTriggered', 'true'); // Sauvegarder dans localStorage
             setTimeout(async () => {
-                console.log('📥 Lancement du téléchargement automatique...');
+                console.log('📥 Launching auto-download...');
                 await this.downloadResults();
             }, 1000);
         } else if (localStorage.getItem('autoDownload') === 'true' && this.autoDownloadTriggered) {
-            console.log('❌ Téléchargement automatique déjà effectué');
+            console.log('❌ Auto-download already performed');
         } else {
-            console.log('❌ Téléchargement automatique désactivé');
+            console.log('❌ Auto-download disabled');
         }
         
         // Réinitialiser les boutons
@@ -889,15 +991,15 @@ class SteamKeysPopup {
             <div class="summary-stats">
                 <div class="stat-item activated">
                     <span class="stat-value">${activated}</span>
-                    <span class="stat-label">Activées</span>
+                    <span class="stat-label">Activated</span>
                 </div>
                 <div class="stat-item not-activated">
                     <span class="stat-value">${notActivated}</span>
-                    <span class="stat-label">Non activées</span>
+                    <span class="stat-label">Not activated</span>
                 </div>
                 <div class="stat-item error">
                     <span class="stat-value">${errors}</span>
-                    <span class="stat-label">Erreurs</span>
+                    <span class="stat-label">Errors</span>
                 </div>
             </div>
         `;
@@ -920,13 +1022,13 @@ class SteamKeysPopup {
         try {
             // Vérifier que les données nécessaires sont disponibles
             if (!this.csvData || !this.csvHeaders || !this.results) {
-                console.log('Données manquantes, tentative de restauration...');
+                console.log('Missing data, attempting restoration...');
                 
                 // Essayer de restaurer les données depuis le background script
                 const restored = await this.forceRestoreData();
                 
                 if (!restored || !this.csvData || !this.csvHeaders || !this.results) {
-                    throw new Error('Impossible de récupérer les données nécessaires pour le téléchargement');
+                    throw new Error('Unable to retrieve data necessary for download');
                 }
             }
             
@@ -949,7 +1051,7 @@ class SteamKeysPopup {
             // Nettoyer l'URL créée
             URL.revokeObjectURL(url);
             
-            this.updateStatus('success', 'Résultats téléchargés');
+            this.updateStatus('success', 'Results downloaded');
             
         } catch (error) {
             console.error('Erreur lors du téléchargement:', error);

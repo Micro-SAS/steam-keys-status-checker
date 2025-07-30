@@ -200,7 +200,7 @@ class SteamKeyChecker {
             }
             
             if (this.isChecking) {
-                console.log('✅ Vérification terminée avec succès');
+                console.log('✅ Verification completed successfully');
                 chrome.runtime.sendMessage({
                     type: 'checkingCompleted',
                     results: this.results
