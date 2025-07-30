@@ -44,6 +44,7 @@ class SteamKeysPopup {
         this.checkFilteredKeys = document.getElementById('checkFilteredKeys');
         this.filterGroup = document.getElementById('filterGroup');
         this.filterColumn = document.getElementById('filterColumn');
+        this.filterValue = document.getElementById('filterValue');
         this.hasKey2Checkbox = document.getElementById('hasKey2Checkbox');
         this.autoDownloadCheckbox = document.getElementById('autoDownloadCheckbox');
         
@@ -87,6 +88,12 @@ class SteamKeysPopup {
         this.errorModalClose = document.getElementById('errorModalClose');
         this.errorModalOk = document.getElementById('errorModalOk');
         
+        // Steamworks info modal elements
+        this.steamworksInfoModal = document.getElementById('steamworksInfoModal');
+        this.steamworksInfoModalClose = document.getElementById('steamworksInfoModalClose');
+        this.steamworksInfoCancel = document.getElementById('steamworksInfoCancel');
+        this.steamworksInfoContinue = document.getElementById('steamworksInfoContinue');
+        
         // Step sections
         this.stepConnection = document.getElementById('stepConnection');
         this.stepUpload = document.getElementById('stepUpload');
@@ -117,6 +124,7 @@ class SteamKeysPopup {
             this.updateConfig();
         });
         this.filterColumn.addEventListener('change', () => this.updateConfig());
+        this.filterValue.addEventListener('change', () => this.updateConfig());
         this.hasKey2Checkbox.addEventListener('change', (e) => {
             this.key2ColumnGroup.style.display = e.target.checked ? 'block' : 'none';
             if (!e.target.checked) {
@@ -153,6 +161,11 @@ class SteamKeysPopup {
         // Modal
         this.errorModalClose.addEventListener('click', () => this.hideErrorModal());
         this.errorModalOk.addEventListener('click', () => this.hideErrorModal());
+        
+        // Steamworks info modal
+        this.steamworksInfoModalClose.addEventListener('click', () => this.hideSteamworksInfoModal());
+        this.steamworksInfoCancel.addEventListener('click', () => this.hideSteamworksInfoModal());
+        this.steamworksInfoContinue.addEventListener('click', () => this.proceedToSteamworks());
         
         // Messages from background script
         chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -270,14 +283,30 @@ class SteamKeysPopup {
     }
     
     async connectToSteamworks() {
+        // Afficher la modal d'information avant d'ouvrir Steamworks
+        this.showSteamworksInfoModal();
+    }
+    
+    showSteamworksInfoModal() {
+        this.steamworksInfoModal.style.display = 'flex';
+    }
+    
+    hideSteamworksInfoModal() {
+        this.steamworksInfoModal.style.display = 'none';
+    }
+    
+    async proceedToSteamworks() {
+        // Masquer la modal
+        this.hideSteamworksInfoModal();
+        
         // Ouvrir Steamworks dans un nouvel onglet
         await chrome.tabs.create({ 
             url: 'https://partner.steamgames.com/querycdkey/',
             active: true 
         });
         
-        // Fermer le popup pour que l'utilisateur se connecte
-        window.close();
+        // Ne pas fermer le popup - laisser l'utilisateur revenir
+        // Le popup reste ouvert pour que l'utilisateur puisse revenir
     }
 
     async checkExtensionState() {
@@ -351,6 +380,7 @@ class SteamKeysPopup {
                         this.checkFilteredKeys.checked = true;
                         this.filterGroup.style.display = 'block';
                         this.filterColumn.value = state.config.filterColumn || '';
+                        this.filterValue.value = state.config.filterValue || 'true';
                     } else {
                         this.checkAllKeys.checked = true;
                         this.filterGroup.style.display = 'none';
@@ -599,6 +629,7 @@ class SteamKeysPopup {
         this.config.key2Column = this.key2Column.value;
         this.config.checkScope = this.checkAllKeys.checked ? 'all' : 'filtered';
         this.config.filterColumn = this.filterColumn.value;
+        this.config.filterValue = this.filterValue.value;
         this.config.hasKey2 = this.hasKey2Checkbox.checked;
         
         // Mettre à jour les options quand les colonnes de clés changent
@@ -770,8 +801,19 @@ class SteamKeysPopup {
     shouldCheckRow(checkValue) {
         if (!checkValue) return false;
         
-        const value = checkValue.toString().toLowerCase().trim();
-        return ['true', '1', 'yes', 'oui', 'vrai'].includes(value);
+        const value = checkValue.toString().trim();
+        const filterValue = this.config.filterValue || 'true';
+        
+        switch (filterValue) {
+            case 'true':
+                return ['true', '1', 'True', 'TRUE', 'vrai', 'Vrai', 'VRAI'].includes(value);
+            case 'yes':
+                return ['yes', 'Yes', 'YES', 'oui', 'Oui', 'OUI'].includes(value);
+            case 'x':
+                return ['x', 'X'].includes(value);
+            default:
+                return ['true', '1', 'True', 'TRUE', 'vrai', 'Vrai', 'VRAI'].includes(value);
+        }
     }
     
     async startChecking() {

@@ -141,11 +141,16 @@
                     
                     <div class="form-group" id="filterGroup" style="display: none;">
                         <div class="filter-container">
-                            <span class="filter-text">Quand</span>
+                            <span class="filter-text">If</span>
                             <select id="filterColumn" class="form-select">
                                 <option value="">Select...</option>
                             </select>
-                            <span class="filter-text">= True</span>
+                            <span class="filter-text">=</span>
+                            <select id="filterValue" class="form-select">
+                                <option value="true">True</option>
+                                <option value="yes">Yes/yes</option>
+                                <option value="x">x/X</option>
+                            </select>
                         </div>
                     </div>
                     
@@ -267,6 +272,31 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-primary" id="errorModalOk">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Steamworks Connection Info Modal -->
+    <div class="modal" id="steamworksInfoModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🥺 Come back!</h3>
+                <button class="modal-close" id="steamworksInfoModalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="info-content">
+                    <p>After logging into your Steamworks account:</p>
+                    <ol>
+                        <li>Make sure you're on the key verification page (https://partner.steamgames.com/querycdkey/)</li>
+                        <li><strong>Come back to this extension popup</strong></li>
+                        <li>Upload your CSV of Steam keys to check their status</li>
+                    </ol>
+
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="steamworksInfoCancel">Cancel</button>
+                <button class="btn btn-primary" id="steamworksInfoContinue">Continue to Steamworks</button>
             </div>
         </div>
     </div>

@@ -490,6 +490,14 @@ body {
     min-width: 120px;
 }
 
+.filter-container .form-select:first-of-type {
+    max-width: 150px;
+}
+
+.filter-container .form-select:last-of-type {
+    max-width: 100px;
+}
+
 .connection-buttons {
     display: flex;
     gap: 10px;
@@ -821,6 +829,45 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
+}
+
+/* Steamworks Info Modal */
+.info-content {
+    line-height: 1.6;
+}
+
+.info-content p {
+    margin-bottom: 12px;
+    color: #495057;
+}
+
+.info-content ol {
+    margin: 12px 0 16px 20px;
+    color: #495057;
+}
+
+.info-content li {
+    margin-bottom: 8px;
+}
+
+.info-note {
+    background: #e8f4fd;
+    border: 1px solid #b8daff;
+    border-radius: 4px;
+    padding: 12px;
+    margin-top: 16px;
+}
+
+.info-note p {
+    margin: 0;
+    color: #004085;
+    font-size: 13px;
+}
+
+.modal-footer {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
 }
 
 /* Responsive */
