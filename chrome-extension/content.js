@@ -20,6 +20,7 @@ class SteamKeyChecker {
         this.keys = [];
         this.results = [];
         this.delay = 1000; // 1 seconde entre chaque vérification (plus rapide avec fetch)
+        this.currentAbortController = null; // Pour annuler la requête en cours
         
         // Écouter les messages du popup
         chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -232,6 +233,10 @@ class SteamKeyChecker {
     
     async checkSingleKey(steamKey) {
         try {
+            // Préparer un AbortController pour pouvoir annuler le fetch en cas d'arrêt
+            this.currentAbortController = new AbortController();
+            const { signal } = this.currentAbortController;
+            
             // Vérifier si l'arrêt a été demandé
             if (!this.isChecking) {
                 return { status: "Stopped", error: null };
@@ -256,7 +261,8 @@ class SteamKeyChecker {
                     'Referer': 'https://partner.steamgames.com/querycdkey/',
                     'User-Agent': navigator.userAgent,
                     'Cache-Control': 'no-cache'
-                }
+                },
+                signal,
             });
             
             // Vérifier si l'arrêt a été demandé
@@ -281,6 +287,10 @@ class SteamKeyChecker {
             return { status, error: null };
             
         } catch (error) {
+            if (error.name === 'AbortError') {
+                console.log(`🛑 Requête fetch annulée pour ${steamKey}`);
+                return { status: "Stopped", error: null };
+            }
             console.error(`❌ Erreur lors de la vérification de ${steamKey}:`, error);
             return { status: "Error", error: error.message };
         }
@@ -289,6 +299,9 @@ class SteamKeyChecker {
     // Méthode waitForResult supprimée - non nécessaire avec fetch()
     
     parseStatusFromHTML(htmlText, steamKey) {
+        if (!this.isChecking) {
+            return "Stopped";
+        }
         try {
             console.log(`🔍 Parsing HTML pour ${steamKey}...`);
             
@@ -444,6 +457,11 @@ class SteamKeyChecker {
         console.log('🛑 État isChecking avant arrêt:', this.isChecking);
         
         this.isChecking = false;
+        
+        // Annuler la requête en cours si elle existe
+        if (this.currentAbortController) {
+            try { this.currentAbortController.abort(); } catch(_) {}
+        }
         
         console.log('🛑 État isChecking après arrêt:', this.isChecking);
         
