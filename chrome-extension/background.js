@@ -89,10 +89,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             // Notifier l'utilisateur de la fin
             notifyUserOfCompletion(message.results);
             
-            // Nettoyer le flag de téléchargement automatique
-            broadcastToPopup({
-                type: 'cleanupAutoDownloadFlag'
-            });
             break;
             
         case 'checkingError':
