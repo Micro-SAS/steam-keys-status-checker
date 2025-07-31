@@ -981,6 +981,17 @@ class SteamKeysPopup {
     }
     
     showResults() {
+        // Assurer que la section d'import reflète le fichier déjà chargé
+        if (this.csvData && this.csvHeaders && this.csvData.filename) {
+            // Mettre à jour les informations affichées
+            this.fileName.textContent = this.csvData.filename;
+            this.fileStats.textContent = `${this.csvData.rows.length} lignes, ${this.csvHeaders.length} colonnes`;
+            // Afficher l'état "fichier chargé"
+            this.fileDropZone.style.display = 'none';
+            this.fileInfo.style.display = 'flex';
+        }
+        
+        // Afficher la section résultats
         this.stepResults.style.display = 'block';
         this.currentStep = 'results';
         
