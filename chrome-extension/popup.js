@@ -1004,6 +1004,12 @@ class SteamKeysPopup {
         // Remplir le tableau de prévisualisation
         this.populateResultsTable();
         
+        // Masquer la prévisualisation détaillée des résultats
+        const previewEl = document.getElementById('resultsPreview');
+        if (previewEl) {
+            previewEl.style.display = 'none';
+        }
+
         this.updateStatus('success', `Verification completed - ${this.results.length} keys processed`);
         
         // Télécharger automatiquement le CSV si l'option est activée ET que ce n'est pas déjà fait
@@ -1031,20 +1037,20 @@ class SteamKeysPopup {
         const activated = this.results.filter(r => r.status === 'Activated').length;
         const notActivated = this.results.filter(r => r.status === 'Not activated').length;
         const errors = this.results.filter(r => r.status !== 'Activated' && r.status !== 'Not activated').length;
-        
+
         this.resultsSummary.innerHTML = `
-            <div class="summary-stats">
-                <div class="stat-item activated">
-                    <span class="stat-value">${activated}</span>
-                    <span class="stat-label">Activated</span>
+            <div class="result-counters">
+                <div class="counter activated">
+                    <span class="counter-label">Activated</span>
+                    <span class="counter-value">${activated}</span>
                 </div>
-                <div class="stat-item not-activated">
-                    <span class="stat-value">${notActivated}</span>
-                    <span class="stat-label">Not activated</span>
+                <div class="counter not-activated">
+                    <span class="counter-label">Not activated</span>
+                    <span class="counter-value">${notActivated}</span>
                 </div>
-                <div class="stat-item error">
-                    <span class="stat-value">${errors}</span>
-                    <span class="stat-label">Errors</span>
+                <div class="counter error">
+                    <span class="counter-label">Errors</span>
+                    <span class="counter-value">${errors}</span>
                 </div>
             </div>
         `;
