@@ -346,18 +346,10 @@ async function notifyUserOfCompletion(results) {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         
         if (tab.url && tab.url.includes('partner.steamgames.com')) {
-            // Si on est sur Steamworks, ouvrir le popup seulement si le téléchargement automatique est activé
-            const autoDownloadEnabled = await new Promise((resolve) => {
-                chrome.storage.local.get(['autoDownload'], (result) => {
-                    resolve(result.autoDownload === 'true');
-                });
-            });
-            
-            if (autoDownloadEnabled) {
-                setTimeout(() => {
-                    chrome.action.openPopup();
-                }, 1000);
-            }
+            // Si on est sur Steamworks, ouvrir le popup automatiquement
+            setTimeout(() => {
+                chrome.action.openPopup();
+            }, 1000);
         } else {
             // Si on n'est pas sur Steamworks, ouvrir quand même le popup pour afficher "Download completed"
             setTimeout(() => {
