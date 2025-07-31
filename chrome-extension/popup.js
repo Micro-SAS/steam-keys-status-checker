@@ -201,6 +201,15 @@ class SteamKeysPopup {
             const response = await chrome.tabs.sendMessage(tab.id, { action: 'checkConnection' });
             
             if (response && response.isLoggedIn) {
+                // Vérifier d'abord s'il y a des résultats en attente
+                const hasPendingResults = await this.checkForPendingResults();
+                if (hasPendingResults) {
+                    // Afficher directement les résultats au lieu de la connexion
+                    this.showDownloadCompletedMessage();
+                    this.updateStatus('success', 'Download completed');
+                    return;
+                }
+                
                 this.showConnectionSuccess();
                 this.updateStatus('success', 'Connected to Steamworks');
                 
@@ -1076,36 +1085,79 @@ class SteamKeysPopup {
     }
     
     showResults() {
-        // Assurer que la section d'import reflète le fichier déjà chargé
-        if (this.csvData && this.csvHeaders && this.csvData.filename) {
-            // Mettre à jour les informations affichées
-            this.fileName.textContent = this.csvData.filename;
-            this.fileStats.textContent = `${this.csvData.rows.length} lignes, ${this.csvHeaders.length} colonnes`;
-            // Afficher l'état "fichier chargé"
-            this.fileDropZone.style.display = 'none';
-            this.fileInfo.style.display = 'flex';
-        }
-        
-        // Afficher la section résultats
-        this.stepResults.style.display = 'block';
-        this.currentStep = 'results';
-        
-        // Masquer les étapes précédentes
+        // Masquer toutes les sections
+        this.stepConnection.style.display = 'none';
+        this.stepUpload.style.display = 'none';
+        this.stepConfig.style.display = 'none';
         this.stepProcessing.style.display = 'none';
+        this.stepResults.style.display = 'none';
         
-        // Générer le résumé
-        this.generateResultsSummary();
+        // Masquer aussi la section d'upload complètement (titre et contenu)
+        this.stepUpload.style.display = 'none';
+        this.fileDropZone.style.display = 'none';
+        this.fileInfo.style.display = 'none';
         
-        // Remplir le tableau de prévisualisation
-        this.populateResultsTable();
+        // S'assurer que la section d'upload reste masquée avec un délai
+        setTimeout(() => {
+            this.stepUpload.style.display = 'none';
+            this.fileDropZone.style.display = 'none';
+            this.fileInfo.style.display = 'none';
+        }, 100);
         
-        // Masquer la prévisualisation détaillée des résultats
-        const previewEl = document.getElementById('resultsPreview');
-        if (previewEl) {
-            previewEl.style.display = 'none';
+        // Masquer aussi avec un délai plus long pour être sûr
+        setTimeout(() => {
+            this.stepUpload.style.display = 'none';
+            this.fileDropZone.style.display = 'none';
+            this.fileInfo.style.display = 'none';
+        }, 500);
+        
+        // Masquer aussi la section "Download completed" si elle existe
+        const existingDownloadSection = document.getElementById('stepDownloadCompleted');
+        if (existingDownloadSection) {
+            existingDownloadSection.remove();
         }
-
-        this.updateStatus('success', `Verification completed - ${this.results.length} keys processed`);
+        
+        // Créer et afficher le message de téléchargement terminé avec le même style
+        const downloadCompletedSection = document.createElement('section');
+        downloadCompletedSection.className = 'step-section';
+        downloadCompletedSection.id = 'stepDownloadCompleted';
+        downloadCompletedSection.innerHTML = `
+            <div class="step-header">
+                <h2>✅ Download Completed</h2>
+            </div>
+            <div class="download-completed-content">
+                <div class="success-message">
+                    <div class="success-icon">📥</div>
+                    <h3>Verification completed successfully!</h3>
+                    <p>Your Steam keys have been verified and the results are ready.</p>
+                    <div class="results-summary">
+                        <p><strong>Total keys processed:</strong> ${this.results.length}</p>
+                        <p><strong>Activated:</strong> ${this.results.filter(r => r.status === 'Activated').length}</p>
+                        <p><strong>Not activated:</strong> ${this.results.filter(r => r.status === 'Not activated').length}</p>
+                        <p><strong>Errors:</strong> ${this.results.filter(r => r.status !== 'Activated' && r.status !== 'Not activated').length}</p>
+                    </div>
+                    <div class="download-actions">
+                        <button class="btn btn-primary btn-large" id="downloadResultsBtnOffline">
+                            💾 Download CSV Results
+                        </button>
+                        <button class="btn btn-secondary btn-large" id="newCheckBtnOffline">
+                            🔄 New verification
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Ajouter la section au conteneur principal
+        const mainContainer = document.querySelector('.extension-main');
+        mainContainer.appendChild(downloadCompletedSection);
+        
+        // Ajouter les event listeners pour les nouveaux boutons
+        document.getElementById('downloadResultsBtnOffline').addEventListener('click', () => this.downloadResults());
+        document.getElementById('newCheckBtnOffline').addEventListener('click', () => this.resetToStart());
+        
+        this.currentStep = 'downloadCompleted';
+        this.updateStatus('success', `Download completed - ${this.results.length} keys processed`);
         
         // Télécharger automatiquement le CSV seulement si l'option est activée ET que ce n'est pas déjà fait
         // Note: Le téléchargement automatique ne se fait que quand on est sur Steamworks (géré dans le background)
@@ -1273,7 +1325,8 @@ class SteamKeysPopup {
             downloadCompletedSection.remove();
         }
         
-        // Réinitialiser l'upload
+        // Réafficher la section d'upload
+        this.stepUpload.style.display = 'block';
         this.fileDropZone.style.display = 'block';
         this.fileInfo.style.display = 'none';
         this.csvFileInput.value = '';
@@ -1284,7 +1337,7 @@ class SteamKeysPopup {
         // Réinitialiser le texte du bouton
         this.startCheckingBtn.innerHTML = '🔍 Start verification';
         
-        this.updateStatus('success', 'Prêt pour une nouvelle vérification');
+        this.updateStatus('success', 'Ready for a new verification');
         this.currentStep = 'upload';
     }
     
