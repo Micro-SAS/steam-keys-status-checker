@@ -295,6 +295,33 @@ class SteamKeyChecker {
             // Créer un parser DOM temporaire
             const parser = new DOMParser();
             const doc = parser.parseFromString(htmlText, 'text/html');
+            // Helper interne pour détecter la plage vide (ownership)
+            const detectOwnershipIssue = (documentNode) => {
+                try {
+                    const header = Array.from(documentNode.querySelectorAll('h2'))
+                        .find(h => h.textContent && h.textContent.toLowerCase().includes('détails de la plage de clés cd'));
+                    if (!header) return false;
+
+                    // Parcourir les siblings jusqu'au prochain <table>
+                    let sib = header.nextSibling;
+                    let table = null;
+                    while (sib) {
+                        if (sib.nodeType === 1 && sib.tagName === 'TABLE') { table = sib; break; }
+                        sib = sib.nextSibling;
+                    }
+                    if (!table) return false;
+
+                    const rows = table.querySelectorAll('tr');
+                    if (rows.length < 2) return true; // pas de ligne de données -> ownership issue
+                    const dataCells = Array.from(rows[1].querySelectorAll('td'));
+                    return dataCells.every(td => td.textContent.trim() === '');
+                } catch(_) { return false; }
+            };
+
+            const isOwnershipIssue = detectOwnershipIssue(doc);
+            if (isOwnershipIssue) {
+                console.log(`⚠️ Ownership issue détecté pour ${steamKey}`);
+            }
             
             // Méthode 1: Rechercher les spans avec couleur dans les tableaux
             const statusSpans = doc.querySelectorAll('td span[style*="color"], span[style*="color"]');
@@ -311,7 +338,7 @@ class SteamKeyChecker {
                     statusText.toLowerCase().includes('not activated') ||
                     (statusColor.includes('#e24044') || statusColor.includes('rgb(226, 64, 68)'))) {
                     console.log(`❌ Détecté: NOT ACTIVATED`);
-                    return "Not activated";
+                    return isOwnershipIssue ? "Ownership issue" : "Not activated";
                 }
                 
                 // Puis vérifier "activée"
@@ -332,12 +359,12 @@ class SteamKeyChecker {
             // Patterns plus spécifiques avec priorité à "NON activée"
             if (lowerBodyText.includes('non activée')) {
                 console.log(`❌ Trouvé dans le texte: "non activée"`);
-                return "Not activated";
+                return isOwnershipIssue ? "Ownership issue" : "Not activated";
             }
             
             if (lowerBodyText.includes('not activated')) {
                 console.log(`❌ Trouvé dans le texte: "not activated"`);
-                return "Not activated";
+                return isOwnershipIssue ? "Ownership issue" : "Not activated";
             }
             
             // Vérifier "activée" seulement si "non activée" n'est pas présent

@@ -147,7 +147,7 @@ def check_steam_key(driver, steam_key):
         
         # Wait for the result
         time.sleep(3)
-        
+
         # Verify that the key is still present after submission
         try:
             result_input = driver.find_element(By.NAME, "cdkey")
@@ -156,6 +156,32 @@ def check_steam_key(driver, steam_key):
                 return f"Error: The key was not submitted correctly (final: {final_value})"
         except:
             pass  # Don't fail if we can't verify
+
+        # --- Ownership issue detection (table empty) ---
+        def is_ownership_issue():
+            try:
+                header_el = driver.find_element(By.XPATH, "//h2[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'détails de la plage de clés cd')]")
+                # trouver le 1er table après le h2
+                table_el = None
+                sib = header_el
+                while sib is not None:
+                    sib = sib.find_element(By.XPATH, "following-sibling::*[1]")
+                    if sib.tag_name.lower() == 'table':
+                        table_el = sib
+                        break
+                if not table_el:
+                    return False
+                rows = table_el.find_elements(By.XPATH, './/tr')
+                if len(rows) < 2:
+                    return True
+                data_cells = rows[1].find_elements(By.TAG_NAME, 'td')
+                return all(c.text.strip() == '' for c in data_cells)
+            except Exception:
+                return False
+
+        if is_ownership_issue():
+            logger.info(f"Key {steam_key[:10]}... - Ownership issue")
+            return "Ownership issue"
         
         # Search for status with an improved method
         status = "Status not found"

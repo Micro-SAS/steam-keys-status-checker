@@ -555,6 +555,18 @@ class SteamKeysCheckerApp:
     def parse_status(self):
         """Analyse le statut retourné par Steamworks."""
         status = "Status not found"
+
+        # 0) Ownership issue detection : table "Détails de la plage de clés CD" vide
+        try:
+            header_el = self.driver.find_element(By.XPATH, "//h2[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'détails de la plage de clés cd')]")
+            table_el = header_el.find_element(By.XPATH, "following-sibling::table[1]")
+            rows = table_el.find_elements(By.XPATH, './/tr')
+            if len(rows) >= 2:
+                data_cells = rows[1].find_elements(By.TAG_NAME, 'td')
+                if data_cells and all(c.text.strip() == '' for c in data_cells):
+                    return "Ownership issue"
+        except Exception:
+            pass
         
         try:
             # Chercher le span avec couleur

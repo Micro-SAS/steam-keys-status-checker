@@ -861,20 +861,29 @@ class SteamKeysPopup {
                 }
             }
             
-            // Vérifier que le content script est chargé et fonctionne
-            try {
-                const pingResponse = await chrome.tabs.sendMessage(tab.id, { type: 'ping' });
-                if (!pingResponse || pingResponse.type !== 'pong') {
-                    throw new Error('Content script is not responding correctly');
+            // Vérifier que le content-script répond via un ping (jusqu'à 3 tentatives)
+            const pingTab = async () => {
+                try {
+                    const resp = await chrome.tabs.sendMessage(tab.id, { type: 'ping' });
+                    return resp && resp.type === 'pong';
+                } catch (_) {
+                    return false;
                 }
-            } catch (pingError) {
-                if (pingError.message.includes('Could not establish connection')) {
-                    throw new Error('Content script is not loaded. Make sure you are on partner.steamgames.com and reload the page.');
-                } else if (pingError.message.includes('Receiving end does not exist')) {
-                    throw new Error('No content script found. Open partner.steamgames.com and try again.');
-                } else {
-                    throw new Error(`Communication error: ${pingError.message}. Reload the Steamworks page.`);
-                }
+            };
+
+            let pingOk = await pingTab();
+            if (!pingOk) {
+                // Attendre que la page finisse de charger puis réessayer
+                await new Promise(r => setTimeout(r, 1000));
+                pingOk = await pingTab();
+            }
+            if (!pingOk) {
+                await new Promise(r => setTimeout(r, 2000));
+                pingOk = await pingTab();
+            }
+
+            if (!pingOk) {
+                throw new Error('Content script is not loaded or unresponsive. Refresh the Steamworks page, then try again.');
             }
             
             // Envoyer les clés au content script
