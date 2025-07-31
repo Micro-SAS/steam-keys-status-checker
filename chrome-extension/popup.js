@@ -188,7 +188,7 @@ class SteamKeysPopup {
                 if (hasPendingResults) {
                     // Afficher directement les résultats au lieu de la connexion
                     this.showDownloadCompletedMessage();
-                    this.updateStatus('success', 'Download completed');
+                    this.updateStatus('success', 'Verification completed');
                     return;
                 }
                 
@@ -206,7 +206,7 @@ class SteamKeysPopup {
                 if (hasPendingResults) {
                     // Afficher directement les résultats au lieu de la connexion
                     this.showDownloadCompletedMessage();
-                    this.updateStatus('success', 'Download completed');
+                    this.updateStatus('success', 'Verification completed');
                     return;
                 }
                 
@@ -269,9 +269,6 @@ class SteamKeysPopup {
         downloadCompletedSection.className = 'step-section';
         downloadCompletedSection.id = 'stepDownloadCompleted';
         downloadCompletedSection.innerHTML = `
-            <div class="step-header">
-                <h2>✅ Download Completed</h2>
-            </div>
             <div class="download-completed-content">
                 <div class="success-message">
                     <div class="success-icon">📥</div>
@@ -1122,9 +1119,6 @@ class SteamKeysPopup {
         downloadCompletedSection.className = 'step-section';
         downloadCompletedSection.id = 'stepDownloadCompleted';
         downloadCompletedSection.innerHTML = `
-            <div class="step-header">
-                <h2>✅ Download Completed</h2>
-            </div>
             <div class="download-completed-content">
                 <div class="success-message">
                     <div class="success-icon">📥</div>
@@ -1157,7 +1151,7 @@ class SteamKeysPopup {
         document.getElementById('newCheckBtnOffline').addEventListener('click', () => this.resetToStart());
         
         this.currentStep = 'downloadCompleted';
-        this.updateStatus('success', `Download completed - ${this.results.length} keys processed`);
+        this.updateStatus('success', `Verification completed - ${this.results.length} keys processed`);
         
         // Télécharger automatiquement le CSV seulement si l'option est activée ET que ce n'est pas déjà fait
         // Note: Le téléchargement automatique ne se fait que quand on est sur Steamworks (géré dans le background)
