@@ -1,215 +1,198 @@
-# 🔑 Steam Keys Status Checker - Application Desktop
+# 🔑 Steam Keys Checker - Chrome Extension
 
-**Outil automatisé de vérification des clés Steam via Steamworks Partner avec interface graphique moderne**
+**Automated Steam key verification tool via Steamworks Partner with a Chrome extension interface**
 
 ---
 
-## ✨ Fonctionnalités
+## ✨ Features
 
-- **Interface graphique intuitive** avec Tkinter
-- **Lecture automatique** d'un fichier CSV contenant des clés Steam
-- **Vérification automatisée** via https://partner.steamgames.com/querycdkey/
-- **Support multi-colonnes** : `key_1` et `key_2` (optionnel)
-- **Saisie robuste** : caractère par caractère pour éviter les erreurs
-- **Détection améliorée** : support des formats de couleur RGB et HEX
-- **Filtrage intelligent** : basé sur la colonne de filtrage pour éviter les vérifications inutiles
-- **Sauvegarde automatique** des résultats avec timestamp
-- **Interface utilisateur moderne** avec progression en temps réel
-- **Gestion des erreurs** et protection contre les abus
-- **Délais aléatoires** entre les vérifications pour éviter la détection
-- **Exécutable distributable** pour faciliter l'installation
+- **Chrome Extension**: Integration with your browser
+- **Bulk CSV Processing**: Upload and process CSV files containing Steam keys
+- **Automated Verification**: Check key status via https://partner.steamgames.com/querycdkey/
+- **Dual Key Support**: Handle both single and dual key columns
+- **Smart Filtering**: Filter keys based on specific columns to avoid unnecessary checks
+- **Real-time Progress**: Live progress tracking with completion notifications
+- **Local Storage**: All data stored locally in your browser - no external servers
+- **Resume Capability**: Continue interrupted verifications from where you left off
+- **Export Results**: Download verification results as CSV files
+- **Privacy-First**: No personal data collection, no external data transmission
 
-## 🚀 Installation et Utilisation
+## 🚀 Installation
 
-### Option 1 : Exécutable (Recommandé)
+### Chrome Web Store (Coming Soon)
+The extension will be available on the Chrome Web Store for easy installation.
 
-1. **Téléchargez l'exécutable** depuis les [Releases GitHub](https://github.com/Micro-SAS/steam-keys-status-checker/releases)
-2. **Double-cliquez** sur `SteamKeysChecker.exe` (Windows) ou `SteamKeysChecker` (Mac/Linux)
-3. **Suivez l'interface** graphique
+### Manual Installation (Developer Mode)
 
-### Option 2 : Script Python
+1. **Download the extension** from [GitHub Releases](https://github.com/Micro-SAS/steam-keys-status-checker/releases)
+2. **Extract the ZIP file** to a folder on your computer
+3. **Open Chrome** and navigate to `chrome://extensions/`
+4. **Enable "Developer mode"** (toggle in the top right)
+5. **Click "Load unpacked"** and select the `chrome-extension` folder
+6. **Pin the extension** to your toolbar for easy access
 
-```bash
-# 1. Clonez le repository
-git clone https://github.com/Micro-SAS/steam-keys-status-checker.git
-cd steam-keys-status-checker
+## 📋 Usage Guide
 
-# 2. Installez les dépendances
-# Windows
-install.bat
+### 1. **Prepare Your CSV File**
+Your CSV file should contain:
+- ** 1 (to 2) column(s)** with Steam keys
+- **Filter column**: To determine which rows to process (default: `to check`)
 
-# Mac/Linux
-./install.sh
-
-# 3. Lancez l'application
-python steam_keys_gui.py
-```
-
-## 📋 Guide d'utilisation
-
-### 1. **Interface principale**
-![Interface](docs/interface.png)
-
-### 2. **Étapes d'utilisation**
-
-1. **📁 Choisir fichier CSV** : Cliquez sur "Choisir fichier CSV" et sélectionnez votre fichier
-2. **⚙️ Configuration** :
-   - Cochez "J'ai 2 colonnes de clés Steam" si nécessaire
-   - Ajustez les noms des colonnes (par défaut : `key_1`, `key_2`)
-   - Configurez la colonne de filtrage (par défaut : `to check`)
-3. **🚀 Lancer la vérification** :
-   - Cliquez sur "Lancer la vérification"
-   - Chrome s'ouvrira automatiquement
-   - Connectez-vous à votre compte Steamworks
-   - Confirmez pour démarrer la vérification automatique
-4. **📊 Suivre la progression** : La barre de progression et les logs vous informent en temps réel
-5. **💾 Récupérer les résultats** : Le CSV avec les statuts sera sauvegardé automatiquement
-
-## 🔧 Format du fichier CSV
-
-### Structure requise
-Votre fichier CSV doit contenir :
-- **Une colonne `key_1`** avec les clés Steam principales
-- **Une colonne `key_2`** avec les clés Steam secondaires (optionnel)
-- **Une colonne de filtrage** (par défaut `to check`) pour déterminer quelles lignes traiter
-
-### Exemple de structure :
+### 2. **Example CSV Structure**
 ```csv
-steam tag,key_1,key_2,to check,date creation,Status,type,medium
+steam_tag,key_1,key_2,to_check,date_creation,status,type,medium
 Game1,XXXXX-XXXXX-XXXXX,YYYYY-YYYYY-YYYYY,true,2024-01-01,Sent,Review,Twitch
 Game2,AAAAA-AAAAA-AAAAA,,true,2024-01-02,Pending,Review,YouTube
 Game3,BBBBB-BBBBB-BBBBB,CCCCC-CCCCC-CCCCC,false,2024-01-03,Draft,Review,Blog
 ```
 
-### Colonnes générées automatiquement :
-- `key_1_status` : Statut de la clé principale
-- `key_2_status` : Statut de la clé secondaire (si présente)
+### 3. **Using the Extension**
 
-## 📊 Statuts détectés
+1. **Click the extension icon** in your Chrome toolbar
+2. **Connect to Steamworks**:
+   - Click "Connect to Steamworks"
+   - Log in to your Steamworks Partner account
+   - Navigate to the key verification page if you are not ready on this page.
+3. **Upload your CSV file** by dragging and dropping or clicking "Select File"
+4. **Configure columns**:
+   - Select your key columns
+   - Choose your filter column
+   - Set verification scope (all keys or filtered only)
+5. **Start verification**:
+   - Click "Check the status of X Steam Keys"
+   - Monitor real-time progress (You can close the popup but do **NOT** close your Chrome browser)
+   - Wait for completion notification
+6. **Download results**:
+   - Click "Download Results" to get your CSV with statuses
 
-- **"Activated"** : Clé déjà utilisée/activée (couleur bleue sur Steamworks)
-- **"Not activated"** : Clé valide et disponible (couleur rouge sur Steamworks)
-- **"Invalid"** : Clé non valide ou expirée
-- **"Error: ..."** : Problème lors de la vérification (message détaillé)
+## 📊 Detected Statuses
 
-## 🛡️ Sécurité et bonnes pratiques
+- **"Activated"**: Key already used/activated (blue color on Steamworks)
+- **"Not activated"**: Valid and available key (red color on Steamworks)
+- **"Invalid"**: Invalid or expired key
+- **"Error: ..."**: Verification problem (detailed message)
 
-### Protection contre la détection
-- **Délais aléatoires** : Entre 1 et 10 secondes entre chaque vérification
-- **User-Agent naturel** : Le navigateur apparaît comme normal
-- **Saisie humanisée** : Caractère par caractère avec micro-pauses
-- **Options anti-détection** : Masquage des signatures d'automatisation
+## 🔧 Technical Details
 
-### Gestion des interruptions
-- **Bouton Arrêter** : Interrompt proprement et sauvegarde les résultats partiels
-- **Sauvegarde continue** : Les résultats sont mis à jour en temps réel
-- **Reprise automatique** : Les clés déjà vérifiées sont ignorées
+### Manifest V3
+Built with the latest Chrome extension standards for better performance and security.
 
-### Confidentialité
-- **Exécution locale** : Tout reste sur votre machine
-- **Aucun logging** des clés dans les fichiers temporaires
-- **Communication directe** uniquement avec le site officiel Steamworks
-- **Données privées** : Aucune donnée n'est envoyée à des tiers
+### Permissions Required
+- **`storage`**: Save verification progress and results locally
+- **`activeTab`**: Access Steamworks Partner pages
+- **`scripting`**: Inject content scripts for key verification
+- **`contextMenus`**: Right-click menu integration
+- **`notifications`**: Completion notifications
+- **`https://partner.steamgames.com/*`**: Access Steamworks Partner interface
 
-## ⚙️ Configuration avancée
+### Privacy & Security
+- **No external servers**: All processing happens locally
+- **No data collection**: No personal information is gathered
+- **Local storage only**: All data stays in your browser
+- **Official API only**: Only communicates with Steamworks Partner
 
-### Variables modifiables dans le code :
-```python
-STEAMWORKS_URL = "https://partner.steamgames.com/querycdkey/"
-MIN_DELAY = 1                           # Délai minimum entre vérifications (secondes)
-MAX_DELAY = 10                          # Délai maximum entre vérifications (secondes)
-```
+## 🛡️ Security Features
 
-### Colonnes configurables :
-- **Colonne 1** : Nom de la première colonne de clés (défaut: `key_1`)
-- **Colonne 2** : Nom de la deuxième colonne de clés (défaut: `key_2`)
-- **Colonne filtre** : Nom de la colonne de filtrage (défaut: `to check`)
+### Anti-Detection Measures
+- **Random delays**: 1-10 seconds between verifications
+- **Natural user behavior**: Mimics human interaction patterns
+- **Stealth mode**: No automation signatures
+- **Rate limiting**: Respects Steamworks Partner limits
 
-## 🔨 Développement
-
-### Prérequis de développement
-- Python 3.8+
-- Chrome ou Chromium installé
-- Compte Steamworks Partner valide
-
-### Installation pour développement
-```bash
-git clone https://github.com/Micro-SAS/steam-keys-status-checker.git
-cd steam-keys-status-checker
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# ou
-venv\Scripts\activate     # Windows
-pip install -r requirements.txt
-```
-
-### Créer un exécutable
-```bash
-python build_app.py
-```
-
-## 🚨 Dépannage
-
-### Problèmes courants
-
-#### "Champ cdkey non trouvé"
-- ✅ Vérifiez que vous êtes bien connecté à Steamworks
-- ✅ La page se charge-t-elle correctement ?
-- ✅ Testez manuellement la page querycdkey
-
-#### "Impossible de saisir la clé correctement"
-- ✅ Vérifiez que la clé n'a pas de caractères spéciaux
-- ✅ Vérifiez le format : `XXXXX-XXXXX-XXXXX`
-- ✅ Problème possible : confusion entre `0` (zéro) et `O` (lettre O)
-
-#### Erreurs de ChromeDriver
-- ✅ Chrome est-il installé ? (`google-chrome --version`)
-- ✅ L'application télécharge automatiquement ChromeDriver
-- ✅ Vérifiez votre connexion Internet
-
-### Logs et debugging
-- Les logs sont affichés en temps réel dans l'interface
-- Un fichier de log est créé automatiquement : `steam_keys_checker_YYYYMMDD_HHMMSS.log`
+### Error Handling
+- **Interruptions**: Stop and resume capability
+- **Progress persistence**: Results saved automatically
+- **Error recovery**: Retry mechanisms for failed verifications
+- **Detailed logging**: Comprehensive error reporting
 
 ## 📈 Performance
 
-### Statistiques attendues
-- **~6 clés/minute** en moyenne (avec délais de sécurité)
-- **100 clés ≈ 15-20 minutes**
-- **500 clés ≈ 1h30-2h**
+### Expected Statistics
+- **~6 keys/minute** average (with security delays)
+- **100 keys ≈ 15-20 minutes**
+- **500 keys ≈ 1h30-2h**
 
-### Recommandations d'usage
-- **Lots de 50-100 clés** maximum par session
-- **Heures creuses** pour éviter la surcharge du site
-- **Test préalable** avec quelques clés
+### Usage Recommendations
+- **Batches of 50-100 keys** maximum per session
+- **Off-peak hours** to avoid site overload
+- **Test first** with a few keys
 
-## 🎯 Version et changelog
+## 🚨 Troubleshooting
 
-**Version actuelle** : 2.0 Desktop (Janvier 2025)
-- ✅ Interface graphique moderne avec Tkinter
-- ✅ Exécutable distributable
-- ✅ Saisie caractère par caractère
-- ✅ Détection RGB/HEX améliorée  
-- ✅ Validation de saisie robuste
-- ✅ Support multi-colonnes
-- ✅ Filtrage intelligent par colonne
-- ✅ Gestion d'erreurs détaillée
-- ✅ Progression temps réel
-- ✅ Sauvegarde automatique avec timestamp
+### Common Issues
+
+#### "Cannot connect to Steamworks"
+- ✅ Ensure you're logged into Steamworks Partner
+- ✅ Check if the page loads correctly
+- ✅ Test the querycdkey page manually
+
+#### "Extension not working"
+- ✅ Verify the extension is enabled in Chrome
+- ✅ Check if you're on the correct Steamworks page
+- ✅ Refresh the page and try again
+
+#### "CSV upload fails"
+- ✅ Ensure your CSV file is properly formatted
+- ✅ Check that required columns exist
+- ✅ Verify file size (should be under 10MB)
+
+### Debug Information
+- Check the browser console for detailed error messages
+- Extension logs are available in the popup interface
+- Contact support with specific error messages
+
+## 🎯 Version Information
+
+**Current Version**: 1.1.0 (December 2024)
+
+### Recent Updates
+- ✅ Chrome extension with Manifest V3
+- ✅ Modern popup interface
+- ✅ CSV file upload and processing
+- ✅ Real-time progress tracking
+- ✅ Local data storage
+- ✅ Resume capability
+- ✅ Export functionality
+- ✅ Privacy-first design
+
+## 🔨 Development
+
+### Prerequisites
+- Chrome browser
+- Steamworks Partner account
+- Basic knowledge of Chrome extensions
+
+### Development Setup
+```bash
+git clone https://github.com/Micro-SAS/steam-keys-status-checker.git
+cd steam-keys-status-checker/chrome-extension
+# Load as unpacked extension in Chrome
+```
+
+### Building for Distribution
+```bash
+# Create ZIP file for Chrome Web Store
+zip -r steam-keys-checker.zip chrome-extension/
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Feel free to:
+- Open [Issues](https://github.com/Micro-SAS/steam-keys-status-checker/issues) for bug reports
+- Submit [Pull Requests](https://github.com/Micro-SAS/steam-keys-status-checker/pulls) for improvements
+- Share enhancement suggestions
+
+## 📄 License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+## 📞 Support
+
+For questions or support:
+- **Email**: contact@hushcrasher.com
+- **GitHub**: [https://github.com/belzanne](https://github.com/belzanne)
+- **Privacy Policy**: [https://micro-sas.github.io/steam-keys-status-checker/](https://micro-sas.github.io/steam-keys-status-checker/)
 
 ---
 
-## 🤝 Contribution
-
-Les contributions sont les bienvenues ! N'hésitez pas à :
-- Ouvrir des [Issues](https://github.com/Micro-SAS/steam-keys-status-checker/issues) pour signaler des bugs
-- Proposer des [Pull Requests](https://github.com/Micro-SAS/steam-keys-status-checker/pulls) pour des améliorations
-- Partager vos suggestions d'amélioration
-
-## 📄 Licence
-
-Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
-
----
-
-**Créé par [Micro-SAS](https://github.com/Micro-SAS)** | **Steam Keys Status Checker v2.0** 
+**Created by [Micro-SAS](https://github.com/Micro-SAS)** | **Steam Keys Checker v1.1.0** 
