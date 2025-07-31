@@ -868,6 +868,67 @@ body {
     font-size: 13px;
 }
 
+/* Download Completed Section */
+.download-completed-content {
+    padding: 20px;
+    text-align: center;
+}
+
+.success-message {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 24px;
+    border: 2px solid #28a745;
+}
+
+.success-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    display: block;
+}
+
+.success-message h3 {
+    color: #28a745;
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.success-message p {
+    color: #6c757d;
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+
+.results-summary {
+    background: white;
+    border-radius: 6px;
+    padding: 16px;
+    margin: 20px 0;
+    border: 1px solid #e9ecef;
+}
+
+.results-summary p {
+    margin: 8px 0;
+    font-size: 14px;
+    color: #495057;
+}
+
+.results-summary strong {
+    color: #212529;
+}
+
+.download-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.download-actions .btn {
+    width: 100%;
+}
+
 .modal-footer {
     display: flex;
     gap: 8px;

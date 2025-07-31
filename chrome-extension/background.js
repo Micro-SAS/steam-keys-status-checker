@@ -36,7 +36,20 @@ chrome.runtime.onInstalled.addListener((details) => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('Message reçu:', message);
     
-    switch (message.type) {
+    switch (message.action || message.type) {
+        case 'getExtensionState':
+            // Retourner l'état actuel de l'extension
+            sendResponse({
+                isChecking: extensionState.isChecking,
+                currentResults: extensionState.currentResults,
+                totalKeys: extensionState.totalKeys,
+                checkedKeys: extensionState.checkedKeys,
+                csvData: extensionState.csvData,
+                config: extensionState.config,
+                currentKey: extensionState.currentKey
+            });
+            return false; // Réponse synchrone
+            
         case 'checkingStarted':
             extensionState.isChecking = true;
             extensionState.totalKeys = message.total;
@@ -119,6 +132,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             
             // Relayer le message vers le popup
             broadcastToPopup(message);
+            break;
+            
+        case 'resetState':
+            // Réinitialiser complètement l'état de l'extension
+            extensionState = {
+                isChecking: false,
+                currentResults: [],
+                totalKeys: 0,
+                checkedKeys: 0,
+                csvData: null,
+                config: null,
+                currentKey: '',
+                startTime: null
+            };
+            
+            // Sauvegarder l'état réinitialisé
+            saveExtensionState();
+            
+            // Mettre à jour l'icône de l'extension
+            updateExtensionIcon(false);
             break;
             
         case 'stopChecking':
@@ -292,7 +325,7 @@ function updateExtensionIcon(isChecking) {
 }
 
 // Fonction pour notifier l'utilisateur de la fin de vérification
-function notifyUserOfCompletion(results) {
+async function notifyUserOfCompletion(results) {
     const activated = results.filter(r => r.status === 'Activated').length;
     const notActivated = results.filter(r => r.status === 'Not activated').length;
     const errors = results.filter(r => r.status !== 'Activated' && r.status !== 'Not activated').length;
@@ -308,10 +341,36 @@ function notifyUserOfCompletion(results) {
     // Jouer un son de notification (si supporté)
     playNotificationSound();
     
-    // Ouvrir automatiquement le popup pour montrer les résultats
-    setTimeout(() => {
-        chrome.action.openPopup();
-    }, 1000);
+    // Vérifier si l'utilisateur est sur Steamworks
+    try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        
+        if (tab.url && tab.url.includes('partner.steamgames.com')) {
+            // Si on est sur Steamworks, ouvrir le popup seulement si le téléchargement automatique est activé
+            const autoDownloadEnabled = await new Promise((resolve) => {
+                chrome.storage.local.get(['autoDownload'], (result) => {
+                    resolve(result.autoDownload === 'true');
+                });
+            });
+            
+            if (autoDownloadEnabled) {
+                setTimeout(() => {
+                    chrome.action.openPopup();
+                }, 1000);
+            }
+        } else {
+            // Si on n'est pas sur Steamworks, ouvrir quand même le popup pour afficher "Download completed"
+            setTimeout(() => {
+                chrome.action.openPopup();
+            }, 1000);
+        }
+    } catch (error) {
+        console.log('Error checking current tab, opening popup anyway:', error);
+        // En cas d'erreur, ouvrir quand même le popup
+        setTimeout(() => {
+            chrome.action.openPopup();
+        }, 1000);
+    }
 }
 
 // Fonction pour afficher une notification

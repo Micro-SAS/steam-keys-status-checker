@@ -143,7 +143,7 @@ class SteamKeysPopup {
             this.updateConfig();
         });
         this.autoDownloadCheckbox.addEventListener('change', (e) => {
-            localStorage.setItem('autoDownload', e.target.checked.toString());
+            chrome.storage.local.set({ autoDownload: e.target.checked.toString() });
             console.log('🔧 Option téléchargement automatique changée:', e.target.checked);
         });
         
@@ -183,6 +183,15 @@ class SteamKeysPopup {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
             
             if (!tab.url || !tab.url.includes('partner.steamgames.com')) {
+                // Vérifier si on a des résultats en attente d'affichage
+                const hasPendingResults = await this.checkForPendingResults();
+                if (hasPendingResults) {
+                    // Afficher directement les résultats au lieu de la connexion
+                    this.showDownloadCompletedMessage();
+                    this.updateStatus('success', 'Download completed');
+                    return;
+                }
+                
                 this.showConnectionInstructions();
                 this.updateStatus('warning', 'Open Steamworks to check connection');
                 return;
@@ -211,6 +220,81 @@ class SteamKeysPopup {
             this.showConnectionInstructions();
             this.updateStatus('warning', 'Open Steamworks to check connection');
         }
+    }
+    
+    // Vérifier s'il y a des résultats en attente d'affichage
+    async checkForPendingResults() {
+        try {
+            // Récupérer l'état depuis le background script
+            const response = await chrome.runtime.sendMessage({ 
+                action: 'getExtensionState' 
+            });
+            
+            if (response && response.currentResults && response.currentResults.length > 0) {
+                // Restaurer les résultats
+                this.results = response.currentResults;
+                this.csvData = response.csvData;
+                this.csvHeaders = response.csvHeaders;
+                this.config = response.config;
+                return true;
+            }
+            
+            return false;
+        } catch (error) {
+            console.log('Erreur lors de la vérification des résultats en attente:', error);
+            return false;
+        }
+    }
+    
+    // Afficher le message "Download completed" quand on n'est pas sur Steamworks
+    showDownloadCompletedMessage() {
+        // Masquer toutes les sections
+        this.stepConnection.style.display = 'none';
+        this.stepUpload.style.display = 'none';
+        this.stepConfig.style.display = 'none';
+        this.stepProcessing.style.display = 'none';
+        this.stepResults.style.display = 'none';
+        
+        // Créer et afficher le message de téléchargement terminé
+        const downloadCompletedSection = document.createElement('section');
+        downloadCompletedSection.className = 'step-section';
+        downloadCompletedSection.id = 'stepDownloadCompleted';
+        downloadCompletedSection.innerHTML = `
+            <div class="step-header">
+                <h2>✅ Download Completed</h2>
+            </div>
+            <div class="download-completed-content">
+                <div class="success-message">
+                    <div class="success-icon">📥</div>
+                    <h3>Verification completed successfully!</h3>
+                    <p>Your Steam keys have been verified and the results are ready.</p>
+                    <div class="results-summary">
+                        <p><strong>Total keys processed:</strong> ${this.results.length}</p>
+                        <p><strong>Activated:</strong> ${this.results.filter(r => r.status === 'Activated').length}</p>
+                        <p><strong>Not activated:</strong> ${this.results.filter(r => r.status === 'Not activated').length}</p>
+                        <p><strong>Errors:</strong> ${this.results.filter(r => r.status !== 'Activated' && r.status !== 'Not activated').length}</p>
+                    </div>
+                    <div class="download-actions">
+                        <button class="btn btn-primary btn-large" id="downloadResultsBtnOffline">
+                            💾 Download CSV Results
+                        </button>
+                        <button class="btn btn-secondary btn-large" id="newCheckBtnOffline">
+                            🔄 New verification
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Ajouter la section au conteneur principal
+        const mainContainer = document.querySelector('.extension-main');
+        mainContainer.appendChild(downloadCompletedSection);
+        
+        // Ajouter les event listeners pour les nouveaux boutons
+        document.getElementById('downloadResultsBtnOffline').addEventListener('click', () => this.downloadResults());
+        document.getElementById('newCheckBtnOffline').addEventListener('click', () => this.resetToStart());
+        
+        this.currentStep = 'downloadCompleted';
     }
     
     checkIfLoggedInToSteamworks(htmlText) {
@@ -395,8 +479,10 @@ class SteamKeysPopup {
                 }
                 
                 // Restaurer l'option de téléchargement automatique
-                const autoDownload = localStorage.getItem('autoDownload') === 'true';
-                this.autoDownloadCheckbox.checked = autoDownload;
+                chrome.storage.local.get(['autoDownload'], (result) => {
+                    const autoDownload = result.autoDownload === 'true';
+                    this.autoDownloadCheckbox.checked = autoDownload;
+                });
                 
                 this.updateStatus('success', 'State restored');
             }
@@ -1021,20 +1107,25 @@ class SteamKeysPopup {
 
         this.updateStatus('success', `Verification completed - ${this.results.length} keys processed`);
         
-        // Télécharger automatiquement le CSV si l'option est activée ET que ce n'est pas déjà fait
-        if (localStorage.getItem('autoDownload') === 'true' && !this.autoDownloadTriggered) {
-            console.log('🔄 Auto-download enabled, launching in 1 second...');
-            this.autoDownloadTriggered = true; // Marquer comme déclenché
-            localStorage.setItem('autoDownloadTriggered', 'true'); // Sauvegarder dans localStorage
-            setTimeout(async () => {
-                console.log('📥 Launching auto-download...');
-                await this.downloadResults();
-            }, 1000);
-        } else if (localStorage.getItem('autoDownload') === 'true' && this.autoDownloadTriggered) {
-            console.log('❌ Auto-download already performed');
-        } else {
-            console.log('❌ Auto-download disabled');
-        }
+        // Télécharger automatiquement le CSV seulement si l'option est activée ET que ce n'est pas déjà fait
+        // Note: Le téléchargement automatique ne se fait que quand on est sur Steamworks (géré dans le background)
+        chrome.storage.local.get(['autoDownload'], (result) => {
+            const autoDownload = result.autoDownload === 'true';
+            
+            if (autoDownload && !this.autoDownloadTriggered) {
+                console.log('🔄 Auto-download enabled, launching in 1 second...');
+                this.autoDownloadTriggered = true; // Marquer comme déclenché
+                localStorage.setItem('autoDownloadTriggered', 'true'); // Sauvegarder dans localStorage
+                setTimeout(async () => {
+                    console.log('📥 Launching auto-download...');
+                    await this.downloadResults();
+                }, 1000);
+            } else if (autoDownload && this.autoDownloadTriggered) {
+                console.log('❌ Auto-download already performed');
+            } else {
+                console.log('❌ Auto-download disabled');
+            }
+        });
         
         // Réinitialiser les boutons
         this.startCheckingBtn.style.display = 'inline-flex';
@@ -1176,6 +1267,12 @@ class SteamKeysPopup {
         this.stepProcessing.style.display = 'none';
         this.stepResults.style.display = 'none';
         
+        // Masquer aussi la section "Download completed" si elle existe
+        const downloadCompletedSection = document.getElementById('stepDownloadCompleted');
+        if (downloadCompletedSection) {
+            downloadCompletedSection.remove();
+        }
+        
         // Réinitialiser l'upload
         this.fileDropZone.style.display = 'block';
         this.fileInfo.style.display = 'none';
@@ -1264,9 +1361,12 @@ class SteamKeysPopup {
     }
 
     initializeAutoDownloadOption() {
-        const autoDownload = localStorage.getItem('autoDownload') === 'true';
-        this.autoDownloadCheckbox.checked = autoDownload;
-        console.log('🔧 Option téléchargement automatique initialisée:', autoDownload);
+        // Utiliser chrome.storage.local pour la cohérence avec le background script
+        chrome.storage.local.get(['autoDownload'], (result) => {
+            const autoDownload = result.autoDownload === 'true';
+            this.autoDownloadCheckbox.checked = autoDownload;
+            console.log('🔧 Option téléchargement automatique initialisée:', autoDownload);
+        });
     }
 }
 
