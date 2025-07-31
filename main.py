@@ -9,6 +9,7 @@ import time
 import os
 import random
 import logging
+import re
 from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -71,7 +72,20 @@ def setup_driver():
 def check_steam_key(driver, steam_key):
     """Check the status of a Steam key on the Steamworks site with an improved method."""
     logger = logging.getLogger(__name__)
+    # --- 1) Validate format BEFORE any network / browser action ---
+    def is_valid_format(k: str) -> bool:
+        k = k.strip().upper()
+        parts = k.split('-')
+        if len(parts) not in (3, 5):
+            return False
+        return all(len(p) == 5 and p.isalnum() for p in parts)
+
+    if not is_valid_format(steam_key):
+        logger.info(f"Key {steam_key[:10]}... - Invalid format")
+        return "Invalid format"
+    
     try:
+        # --- 2) Continue with verification if format is OK ---
         # Go to the verification page
         driver.get(STEAMWORKS_URL)
         

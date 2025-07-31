@@ -158,7 +158,13 @@ class SteamKeyChecker {
                     currentKey: key.value.substring(0, 10) + '...'
                 });
                 
-                const result = await this.checkSingleKey(key.value);
+                let result;
+                if (!this.isValidKeyFormat(key.value)) {
+                    console.log(`⚠️ Format invalide détecté pour la clé ${key.value}`);
+                    result = { status: "Invalid format", error: null };
+                } else {
+                    result = await this.checkSingleKey(key.value);
+                }
                 
                 // Si la vérification a été arrêtée, sortir de la boucle
                 if (result.status === "Stopped") {
@@ -429,6 +435,19 @@ class SteamKeyChecker {
     
     sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // Vérifie si le format de la clé Steam est valide.
+    // Accepte :
+    //   - 3 blocs de 5 caractères alphanumériques (XXXXX-XXXXX-XXXXX)
+    //   - 5 blocs de 5 caractères alphanumériques (XXXXX-XXXXX-XXXXX-XXXXX-XXXXX)
+    // Le test par split évite les faux positifs dus à des caractères cachés ou spéciaux.
+    isValidKeyFormat(key) {
+        if (!key) return false;
+        const cleaned = key.trim().toUpperCase();
+        const parts = cleaned.split('-');
+        if (!(parts.length === 3 || parts.length === 5)) return false;
+        return parts.every(p => /^[A-Z0-9]{5}$/.test(p));
     }
 }
 

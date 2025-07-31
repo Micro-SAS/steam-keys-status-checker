@@ -12,6 +12,7 @@ import time
 import os
 import random
 import logging
+import re
 from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -436,11 +437,20 @@ class SteamKeysCheckerApp:
     
     def check_steam_key(self, steam_key):
         """Vérifie le statut d'une clé Steam."""
+        # 1) Validation du format AVANT toute action réseau / navigateur
+        def is_valid_format(k: str) -> bool:
+            k = k.strip().upper()
+            parts = k.split('-')
+            if len(parts) not in (3, 5):
+                return False
+            return all(len(p) == 5 and p.isalnum() for p in parts)
+
+        if not is_valid_format(steam_key):
+            self.logger.info(f"Key {steam_key[:10]}... - Invalid format")
+            return "Invalid format"
+
         try:
-            # Vérifier si l'arrêt a été demandé
-            if not self.is_processing:
-                return "Stopped"
-            
+            # 2) Poursuite de la vérification si le format est valide
             # Aller à la page de vérification
             self.driver.get(self.STEAMWORKS_URL)
             
