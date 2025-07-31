@@ -291,6 +291,61 @@
         </div>
     </div>
 
+    <!-- About Modal -->
+    <div class="modal" id="aboutModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>ℹ️ About Steam Keys Checker</h3>
+                <button class="modal-close" id="aboutModalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="about-content">
+                    <p><strong>Find out who activated which Steam key!</strong></p>
+                    <p>This Chrome extension automates the verification of your Steam keys' status. Track the performance of your key distributions to content creators. 
+                        <br>Save hours of manual checking.</p>
+                    
+                    <div class="features-list">
+                        <h4>Key Benefits:</h4>
+                        <ul>
+                            <li>✅ <strong>Bulk verification</strong> - Check hundreds of keys at once</li>
+                            <li>📊 <strong>CSV integration</strong> - Import/export your key databases</li>
+                            <li>🔍 <strong>Smart filtering</strong> - Target specific key batches</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="lexicon-section">
+                        <h4>📚 Status Lexicon:</h4>
+                        <div class="status-definitions">
+                            <div class="status-item">
+                                <span class="status-badge activated">Activated</span>
+                                <p>The Steam key has been activated by a user.</p>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-badge not-activated">Not activated</span>
+                                <p>The Steam key is valid but hasn't been redeemed yet. Still available for distribution.</p>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-badge invalid">Invalid format</span>
+                                <p>The key format is incorrect or doesn't match Steam's expected pattern.</p>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-badge ownership">Ownership issue</span>
+                                <p>The key exists but you don't have access to it. You have to be the one who created it to check its status.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="about-footer">
+                        <p>Version 1.1.0 | <a href="https://www.hushcrasher.com" target="_blank">HUSH CRASHER</a></p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="aboutModalOk">Got it!</button>
+            </div>
+        </div>
+    </div>
+
     <script src="popup.js"></script>
 </body>
 </html> 
