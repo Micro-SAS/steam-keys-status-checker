@@ -16,14 +16,10 @@ class SteamKeysPopup {
         this.isChecking = false;
         this.results = [];
         this.currentStep = 'upload';
-        this.autoDownloadTriggered = localStorage.getItem('autoDownloadTriggered') === 'true'; // Flag persistant
         
         this.initializeElements();
         this.attachEventListeners();
         this.checkSteamworksConnectionFirst();
-        
-        // Initialiser l'option de téléchargement automatique
-        this.initializeAutoDownloadOption();
     }
     
     initializeElements() {
@@ -46,7 +42,7 @@ class SteamKeysPopup {
         this.filterColumn = document.getElementById('filterColumn');
         this.filterValue = document.getElementById('filterValue');
         this.hasKey2Checkbox = document.getElementById('hasKey2Checkbox');
-        this.autoDownloadCheckbox = document.getElementById('autoDownloadCheckbox');
+
         
         // Connection elements
         this.connectionStatus = document.getElementById('connectionStatus');
@@ -142,10 +138,7 @@ class SteamKeysPopup {
             this.filterGroup.style.display = 'block';
             this.updateConfig();
         });
-        this.autoDownloadCheckbox.addEventListener('change', (e) => {
-            chrome.storage.local.set({ autoDownload: e.target.checked.toString() });
-            console.log('🔧 Option téléchargement automatique changée:', e.target.checked);
-        });
+
         
         // Connection
         this.connectSteamworksBtn.addEventListener('click', () => this.connectToSteamworks());
@@ -484,11 +477,7 @@ class SteamKeysPopup {
                     }
                 }
                 
-                // Restaurer l'option de téléchargement automatique
-                chrome.storage.local.get(['autoDownload'], (result) => {
-                    const autoDownload = result.autoDownload === 'true';
-                    this.autoDownloadCheckbox.checked = autoDownload;
-                });
+
                 
                 this.updateStatus('success', 'State restored');
             }
@@ -1047,12 +1036,7 @@ class SteamKeysPopup {
                 }
                 break;
                 
-            case 'cleanupAutoDownloadFlag':
-                // Nettoyer le flag de téléchargement automatique
-                this.autoDownloadTriggered = false;
-                localStorage.setItem('autoDownloadTriggered', 'false');
-                console.log('🧹 Flag de téléchargement automatique nettoyé');
-                break;
+
         }
     }
     
@@ -1152,26 +1136,6 @@ class SteamKeysPopup {
         
         this.currentStep = 'downloadCompleted';
         this.updateStatus('success', `Verification completed - ${this.results.length} keys processed`);
-        
-        // Télécharger automatiquement le CSV seulement si l'option est activée ET que ce n'est pas déjà fait
-        // Note: Le téléchargement automatique ne se fait que quand on est sur Steamworks (géré dans le background)
-        chrome.storage.local.get(['autoDownload'], (result) => {
-            const autoDownload = result.autoDownload === 'true';
-            
-            if (autoDownload && !this.autoDownloadTriggered) {
-                console.log('🔄 Auto-download enabled, launching in 1 second...');
-                this.autoDownloadTriggered = true; // Marquer comme déclenché
-                localStorage.setItem('autoDownloadTriggered', 'true'); // Sauvegarder dans localStorage
-                setTimeout(async () => {
-                    console.log('📥 Launching auto-download...');
-                    await this.downloadResults();
-                }, 1000);
-            } else if (autoDownload && this.autoDownloadTriggered) {
-                console.log('❌ Auto-download already performed');
-            } else {
-                console.log('❌ Auto-download disabled');
-            }
-        });
         
         // Réinitialiser les boutons
         this.startCheckingBtn.style.display = 'inline-flex';
@@ -1304,8 +1268,6 @@ class SteamKeysPopup {
         this.csvHeaders = [];
         this.results = [];
         this.isChecking = false;
-        this.autoDownloadTriggered = false; // Réinitialiser le flag
-        localStorage.setItem('autoDownloadTriggered', 'false'); // Réinitialiser dans localStorage
         
         // Masquer toutes les étapes sauf la première
         this.stepConfig.style.display = 'none';
@@ -1407,14 +1369,7 @@ class SteamKeysPopup {
         }
     }
 
-    initializeAutoDownloadOption() {
-        // Utiliser chrome.storage.local pour la cohérence avec le background script
-        chrome.storage.local.get(['autoDownload'], (result) => {
-            const autoDownload = result.autoDownload === 'true';
-            this.autoDownloadCheckbox.checked = autoDownload;
-            console.log('🔧 Option téléchargement automatique initialisée:', autoDownload);
-        });
-    }
+
 }
 
 // Initialisation automatique du popup
