@@ -90,6 +90,11 @@ class SteamKeysPopup {
         this.steamworksInfoCancel = document.getElementById('steamworksInfoCancel');
         this.steamworksInfoContinue = document.getElementById('steamworksInfoContinue');
         
+        // About modal elements
+        this.aboutModal = document.getElementById('aboutModal');
+        this.aboutModalClose = document.getElementById('aboutModalClose');
+        this.aboutModalOk = document.getElementById('aboutModalOk');
+        
         // Step sections
         this.stepConnection = document.getElementById('stepConnection');
         this.stepUpload = document.getElementById('stepUpload');
@@ -159,6 +164,13 @@ class SteamKeysPopup {
         this.steamworksInfoModalClose.addEventListener('click', () => this.hideSteamworksInfoModal());
         this.steamworksInfoCancel.addEventListener('click', () => this.hideSteamworksInfoModal());
         this.steamworksInfoContinue.addEventListener('click', () => this.proceedToSteamworks());
+        
+        // About modal
+        this.aboutModalClose.addEventListener('click', () => this.hideAboutModal());
+        this.aboutModalOk.addEventListener('click', () => this.hideAboutModal());
+        
+        // About button
+        document.getElementById('aboutBtn').addEventListener('click', () => this.showAboutModal());
         
         // Messages from background script
         chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -376,6 +388,14 @@ class SteamKeysPopup {
     
     hideSteamworksInfoModal() {
         this.steamworksInfoModal.style.display = 'none';
+    }
+    
+    showAboutModal() {
+        this.aboutModal.style.display = 'flex';
+    }
+    
+    hideAboutModal() {
+        this.aboutModal.style.display = 'none';
     }
     
     async proceedToSteamworks() {
