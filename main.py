@@ -23,7 +23,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 CSV_FILE_PATH = "data/steam-keys.csv"
 STEAMWORKS_URL = "https://partner.steamgames.com/querycdkey/"
 MIN_DELAY = 1  # Minimum delay in seconds between each verification
-MAX_DELAY = 10  # Maximum delay in seconds between each verification
+MAX_DELAY = 4  # Maximum delay in seconds between each verification
 CHECK_KEY_2 = True  # Also check the key_2 column. Useful if you send 2 keys per content creator.
 
 # Column names configuration - CUSTOMIZE THESE FOR YOUR CSV
