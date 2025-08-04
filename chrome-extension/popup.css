@@ -72,12 +72,6 @@ body {
     filter: brightness(1.2) contrast(1.2);
 }
 
-.header-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 6px;
-}
-
 .header-text h1 {
     font-family: 'Barlow Semi Condensed', sans-serif;
     font-size: 18px;
